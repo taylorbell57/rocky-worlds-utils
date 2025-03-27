@@ -19,8 +19,11 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest
+        pip install pytest pycodestyle
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - name: Code Style Check
+      run: |
+        pycodestyle --ignore=E501,E505,W503 rocky-worlds-utils/*.py
     - name: Install Rocky Worlds Utils
       run: |
         pip install .
