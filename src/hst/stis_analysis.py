@@ -54,6 +54,9 @@ def timetag_split(dataset, prefix, output_dir, target_snr,
     n_subexposures : ``int``
         Number of subexposures in the time series.
     """
+    assert (output_dir != prefix), ('The output directory must be different '
+                                    'from the prefix.')
+
     x1d_filename = dataset + '_x1d.fits'
 
     x1d_header_1 = fits.getheader(str(prefix) + '/' + x1d_filename, 1)
