@@ -2,6 +2,10 @@
 # -*- coding: utf-8 -*-
 """
 This module contains useful tools to process data from HST spectra.
+
+Authors
+-------
+- Leonardo dos Santos <<ldsantos@stsci.edu>>
 """
 from __future__ import (division, print_function, absolute_import,
                         unicode_literals)
@@ -36,17 +40,27 @@ _C_SPEED = c.c.to(u.km / u.s).value
 # Read data from an HSLA spectrum
 def read_hsla_product(filename, prefix=None):
     """
+    Read data from an HSLA spectrum data product.
 
     Parameters
     ----------
-    filename
-    prefix
+    filename : ``str``
+        Name of the HSLA product file.
+
+    prefix : ``str`` or ``None``, optional
+        Prefix to prepend to filename. If ``None``, the assumed prefix is
+        ``./``. Default is ``None``.
 
     Returns
     -------
-    wavelength
-    flux
-    flux_err
+    wavelength : ``numpy.ndarray``
+        Wavelength array.
+
+    flux : ``numpy.ndarray``
+        Flux array.
+
+    flux_err : ``numpy.ndarray``
+        Flux uncertainty array.
     """
     if prefix is None:
         prefix = ""
@@ -68,14 +82,19 @@ def calculate_snr_hsla(wavelength_array, flux_array, error_array):
 
     Parameters
     ----------
-    wavelength_array
-    flux_array
-    error_array
+    wavelength_array : ``numpy.ndarray``
+        Wavelength array.
+
+    flux_array : ``numpy.ndarray``
+        Flux array.
+
+    error_array : ``numpy.ndarray``
+        Flux uncertainty array.
 
     Returns
     -------
-    snr
-
+    snr : ``float``
+        Signal-to-noise ratio.
     """
     # Integrate flux
     int_flux = simpson(flux_array, x=wavelength_array)
@@ -97,19 +116,38 @@ def calculate_snr_hsla(wavelength_array, flux_array, error_array):
 def plot_lines_hsla(wavelength, flux, error, scale=1E-14, velocity_lower=-100.0,
                     velocity_upper=100.0):
     """
+    Plot the HSLA spectrum in key emission lines.
 
     Parameters
     ----------
-    wavelength
-    flux
-    error
-    scale
-    velocity_lower
-    velocity_upper
+    wavelength : ``numpy.ndarray``
+        Wavelength array.
+
+    flux : ``numpy.ndarray``
+        Flux array.
+
+    error : ``numpy.ndarray``
+        Flux uncertainty array.
+
+    scale : ``float``, optional
+        Scaling division factor to apply in the plots (this is used to avoid the
+        scientific notation in the axes of the plot). Default is ``1E-14``.
+
+    velocity_lower : ``float``, optional
+        Lower limit of the Doppler velocity in km/s in the x-axis of the plot.
+        Default is -100.
+
+    velocity_upper : ``float``, optional
+        Upper limit of the Doppler velocity in km/s in the x-axis of the plot.
+        Default is +100.
 
     Returns
     -------
+    fig : ``matplotlib.figure.Figure``
+        Figure object.
 
+    ax : ``matplotlib.axes.Axes``
+        Axes object.
     """
     nrows = 4
     ncols = 4

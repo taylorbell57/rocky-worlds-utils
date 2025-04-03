@@ -2,6 +2,10 @@
 # -*- coding: utf-8 -*-
 """
 This module contains useful tools to process HST/STIS data.
+
+Authors
+-------
+- Leonardo dos Santos <<ldsantos@stsci.edu>>
 """
 from __future__ import (division, print_function, absolute_import,
                         unicode_literals)
@@ -11,8 +15,6 @@ import stistools
 import os
 
 from astropy.io import fits
-from astropy.stats import poisson_conf_interval
-from scipy.integrate import simpson
 
 __all__ = ["timetag_split", ]
 
@@ -21,19 +23,36 @@ __all__ = ["timetag_split", ]
 def timetag_split(dataset, prefix, output_dir, target_snr,
                        max_n_subexposures, clean_intermediate_steps=True):
     """
+    Creates a new time-series of x1d fits files of an HST/STIS dataset.
 
     Parameters
     ----------
-    dataset
-    prefix
-    output_dir
-    target_snr
-    max_n_subexposures
-    clean_intermediate_steps
+    dataset : ``str``
+        Dataset name (example: ``ld9m17d3q``).
+
+    prefix : ``str``
+        Fixed path to dataset directory.
+
+    output_dir : ``str``
+        Path to output directory.
+
+    target_snr : ``float``
+        Minimum signal-to-noise ratio (SNR) that each sub-exposure in the time
+        series should have. This SNR is calculated by integrating the counts
+        in the entire spectrum and then taking the square root of this value.
+
+    max_n_subexposures : ``int``
+        Maximum number of subexposures to produce in the time series. This is
+        useful for avoiding large file sizes.
+
+    clean_intermediate_steps : ``bool``, optional
+        Sets whether intermediate steps should be cleaned up after each run.
+        Default is ``True``.
 
     Returns
     -------
-
+    n_subexposures : ``int``
+        Number of subexposures in the time series.
     """
     x1d_filename = dataset + '_x1d.fits'
 

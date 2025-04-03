@@ -2,6 +2,10 @@
 # -*- coding: utf-8 -*-
 """
 This module contains useful tools to time series from HST STIS and COS spectra.
+
+Authors
+-------
+- Leonardo dos Santos <<ldsantos@stsci.edu>>
 """
 from __future__ import (division, print_function, absolute_import,
                         unicode_literals)
@@ -11,26 +15,46 @@ import numpy as np
 from astropy.stats import poisson_conf_interval
 from scipy.integrate import simpson
 
+__all__ = ["integrate_flux", ]
+
 
 # This function integrates the flux within a wavelength range for given arrays
 # for wavelength and flux
 def integrate_flux(wavelength_range, wavelength_list, flux_list, gross_list,
                    net_list, exposure_time):
     """
+    Integrate fluxes from HST STIS and COS spectra within a range of
+    wavelengths. This code takes into account fractional pixels and correctly
+    estimates uncertainties in the Poisson counting regime.
 
     Parameters
     ----------
-    wavelength_range
-    wavelength_list
-    flux_list
-    gross_list
-    net_list
-    exposure_time
+    wavelength_range : array-like
+        List, array or tuple of two floats containing the start and end of the
+        wavelength range to be integrated.
+
+    wavelength_list : ``numpy.ndarray``
+        Array containing the wavelengths of the spectrum.
+
+    flux_list : ``numpy.ndarray``
+        Array containing the flux values of the spectrum.
+
+    gross_list : ``numpy.ndarray``
+        Array containing the gross counts of the spectrum.
+
+    net_list : ``numpy.ndarray``
+        Array containing the net count rates of the spectrum.
+
+    exposure_time : ``float``
+        Exposure time in seconds.
 
     Returns
     -------
-    integrated_flux
-    integrated_error
+    integrated_flux : ``float``
+        Integrated flux.
+
+    integrated_error : ``float``
+        Uncertainty of the integrated flux.
     """
     # Since the pixels may not range exactly in the interval above,
     # we will need to deal with fractional pixels. But first, let's
