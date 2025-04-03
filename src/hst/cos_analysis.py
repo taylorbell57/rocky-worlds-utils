@@ -10,6 +10,8 @@ import numpy as np
 import costools
 import os
 import glob
+import calcos
+import shutil
 
 from calcos.x1d import concatenateSegments
 from astropy.io import fits
@@ -63,7 +65,7 @@ def timetag_split(dataset, prefix, output_dir, target_snr,
         pass
 
     # The CalCOS pipeline requires time bins to perform the time-tag split
-    time_bins = np.linspace(0, exp_time, n_subexposures)
+    time_bins = np.linspace(0, exp_time, n_subexposures + 1)
 
     # We will use splittag to break down the full exposure into subexposures
     tag_filename_a = prefix + dataset + '_corrtag_a.fits'
@@ -93,18 +95,18 @@ def timetag_split(dataset, prefix, output_dir, target_snr,
     # Extract the tag-split spectra
     split_list = glob.glob(output_dir + dataset + '_?_?_corrtag.fits')
     for subexposure in split_list:
-        costools.x1dcorr.x1dcorr(subexposure, outdir=output_dir)
+        calcos.calcos(subexposure, outdir=output_dir + 'temp/')
+
+    # Move x1ds to output folder
+    split_list = glob.glob(output_dir + 'temp/' + dataset + '*_x1d.fits')
+    for subexposure in split_list:
+        shutil.move(subexposure, output_dir + dataset + subexposure[-13:])
 
     # Clean the intermediate steps files
     if clean_intermediate_steps is True:
-
-        remove_list = glob.glob(output_dir + dataset + '*_flt.fits')
-        for item in remove_list:
-            os.remove(item)
-
-        remove_list = glob.glob(output_dir + dataset + '*_counts.fits')
-        for item in remove_list:
-            os.remove(item)
+        shutil.rmtree(output_dir + 'temp/')
+    else:
+        pass
 
     # Return the filenames back to normal
     split_list = glob.glob(output_dir + dataset + '*_corrtag.fits')
