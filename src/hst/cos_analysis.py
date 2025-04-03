@@ -12,11 +12,14 @@ import os
 import glob
 import calcos
 import shutil
+import multiprocessing
 
 from calcos.x1d import concatenateSegments
 from astropy.io import fits
-from astropy.stats import poisson_conf_interval
-from scipy.integrate import simpson
+
+
+# Change the following if you do not want to use all CPUs
+__N_PROCESSES = multiprocessing.cpu_count()
 
 
 # Divide exposures into sub-exposures for TIME-TAG data and process them
@@ -94,8 +97,14 @@ def timetag_split(dataset, prefix, output_dir, target_snr,
 
     # Extract the tag-split spectra
     split_list = glob.glob(output_dir + dataset + '_?_?_corrtag.fits')
-    for subexposure in split_list:
-        calcos.calcos(subexposure, outdir=output_dir + 'temp/')
+
+    with multiprocessing.Pool(processes=__N_PROCESSES) as pool:
+        _ = pool.starmap(
+            calcos.calcos, [(subexposure, output_dir + 'temp/')
+                            for subexposure in split_list])
+
+    # for subexposure in split_list:
+    #     calcos.calcos(subexposure, outdir=output_dir + 'temp/')
 
     # Move x1ds to output folder
     split_list = glob.glob(output_dir + 'temp/' + dataset + '*_x1d.fits')
@@ -138,7 +147,41 @@ def timetag_split(dataset, prefix, output_dir, target_snr,
         for item in remove_list:
             os.remove(item)
 
-    # XXX Need to add code to merge the splits into a single time-series fits
-    # file, like it's done in the STIS code
+    # Merge the splits into a single time-series fits file, like it's done in
+    # the STIS code
+    new_fits_filename = dataset + '_ts_x1d.fits'
+    with fits.open(output_dir + dataset + '_1_x1d.fits') as hdu:
+        primary_header = hdu[0].header
+        primary_data = hdu[0].data
+        bintable_header = hdu[1].header
+        bintable_data = hdu[1].data
+        primary_header['FILENAME'] = new_fits_filename
+
+    new_primary_hdu = fits.PrimaryHDU(header=primary_header, data=primary_data)
+    new_bintable_hdu = fits.BinTableHDU(header=bintable_header,
+                                        data=bintable_data)
+    hdu_list = [new_primary_hdu, new_bintable_hdu]
+
+    for i in range(n_subexposures - 1):
+        with fits.open(output_dir + dataset + '_{}_x1d.fits'.format(
+                str(i + 1))) as hdu:
+            next_bintable_header = hdu[1].header
+            next_bintable_data = hdu[1].data
+        next_bintable_hdu = fits.BinTableHDU(header=next_bintable_header,
+                                             data=next_bintable_data)
+        hdu_list.append(next_bintable_hdu)
+
+    # Write time series to a new fits file
+    hdul = fits.HDUList(hdu_list)
+    hdul.writeto(output_dir + new_fits_filename)
+
+    # Remove last intermediate steps
+    if clean_intermediate_steps is True:
+        remove_list = glob.glob(output_dir + dataset + '_?_x1d.fits')
+        for item in remove_list:
+            os.remove(item)
+        remove_list = glob.glob(output_dir + dataset + '_?_corrtag_*.fits')
+        for item in remove_list:
+            os.remove(item)
 
     return n_subexposures
