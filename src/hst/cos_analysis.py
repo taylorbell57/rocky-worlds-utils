@@ -64,13 +64,21 @@ def timetag_split(dataset, prefix, output_dir, target_snr,
         Number of subexposures in the time series.
     """
     # Checks whether output directory is different from prefix
-    assert (output_dir != prefix), ('The output directory must be different '
+    if output_dir == prefix:
+        raise ValueError('The output directory must be different '
                                     'from the prefix.')
 
     x1d_filename = dataset + '_x1d.fits'
 
+    x1d_header_0 = fits.getdata(str(prefix) + '/' + x1d_filename, 0)
     x1d_header_1 = fits.getheader(str(prefix) + '/' + x1d_filename, 1)
     x1d_data = fits.getdata(str(prefix) + '/' + x1d_filename)
+
+    # Perform some other checks
+    if x1d_header_0['OBSTYPE'] != 'SPECTROSCOPIC':
+        raise ValueError('Observation type must be SPECTROSCOPIC.')
+    if x1d_header_0['OBSMODE'] != 'TIME-TAG':
+        raise ValueError('Observing mode must be TIME-TAG.')
 
     # Extracting some useful information
     exp_time = x1d_header_1['EXPTIME']

@@ -14,6 +14,7 @@ import numpy as np
 
 from astropy.stats import poisson_conf_interval
 from scipy.integrate import simpson
+from astropy.io import fits
 
 __all__ = ["integrate_flux", ]
 
@@ -98,3 +99,77 @@ def integrate_flux(wavelength_range, wavelength_list, flux_list, gross_list,
     integrated_flux = (full_pixel_flux + fractional_flux_left +
                        fractional_flux_right)
     return integrated_flux, integrated_error
+
+
+# Read the time-series fits file
+def read_fits(dataset, prefix):
+    """
+    Read data from a time-series file processed with the ``cos_analysis`` and
+    ``stis_analysis`` modules.
+
+    TODO: Add an option to splice spectra across STIS echelle orders or COS
+    TODO: segments
+
+    Parameters
+    ----------
+    dataset : ``str``
+        Dataset name (example: ``ld9m17d3q``).
+
+    prefix : ``str``
+        Fixed path to dataset directory.
+
+    Returns
+    -------
+    time_series_dict : ``dict``
+    """
+    x1d_filename = dataset + '_ts_x1d.fits'
+    x1d_header_0 = fits.getdata(str(prefix) + '/' + x1d_filename, 0)
+    instrument = x1d_header_0['INSTRUME']
+    grating = x1d_header_0['OPT_ELEM']
+    cenwave = x1d_header_0['CENWAVE']
+
+    with fits.open(str(prefix) + '/' + x1d_filename) as hdu:
+        n_subexposures = len(hdu) - 1
+
+        # Instantiate some important arrays
+        exposure_start = np.zeros(n_subexposures)
+        exposure_end = np.zeros(n_subexposures)
+        time_stamp = np.zeros(n_subexposures)
+        exposure_time = np.zeros(n_subexposures)
+        data_shape = np.shape(hdu[1].data['WAVELENGTH'])
+        ts_data_shape = (n_subexposures, ) + data_shape
+        wavelength_array = np.zeros(ts_data_shape)
+        flux_array = np.zeros(ts_data_shape)
+        error_array = np.zeros(ts_data_shape)
+        gross_array = np.zeros(ts_data_shape)
+        net_array = np.zeros(ts_data_shape)
+
+        # Populate arrays
+        for i in range(n_subexposures):
+            x1d_header_i = hdu[i + 1].header
+            exposure_start[i] = x1d_header_i['EXPSTART']
+            exposure_end[i] = x1d_header_i['EXPEND']
+            exposure_time[i] = x1d_header_i['EXPTIME']
+            time_stamp[i] = (exposure_start[i]  + exposure_end[i]) / 2
+            data = hdu[i + 1].data
+            wavelength_array[i] += data['WAVELENGTH']
+            flux_array[i] += data['FLUX']
+            error_array[i] += data['ERROR']
+            gross_array[i] += data['GROSS'] * exposure_time[i]
+            net_array[i] += data['NET']
+
+    time_series_dict = {
+        'instrument': instrument,
+        'grating': grating,
+        'cenwave': cenwave,
+        'exp_start': exposure_start,  # MJD
+        'exp_end': exposure_end,  # MJD
+        'time': time_stamp,  # MJD
+        'wavelength': wavelength_array,  # Angstrom
+        'flux': flux_array,  # erg / s / cm ** 2 / A
+        'error': error_array,  # erg / s / cm ** 2 / A
+        'gross_counts': gross_array,  # counts
+        'net': net_array  # counts / s
+    }
+
+    return time_series_dict
