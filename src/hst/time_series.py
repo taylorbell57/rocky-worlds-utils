@@ -123,7 +123,7 @@ def read_fits(dataset, prefix):
     time_series_dict : ``dict``
     """
     x1d_filename = dataset + '_ts_x1d.fits'
-    x1d_header_0 = fits.getdata(str(prefix) + '/' + x1d_filename, 0)
+    x1d_header_0 = fits.getheader(str(prefix) + '/' + x1d_filename, 0)
     instrument = x1d_header_0['INSTRUME']
     grating = x1d_header_0['OPT_ELEM']
     cenwave = x1d_header_0['CENWAVE']
