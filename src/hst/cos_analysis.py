@@ -29,8 +29,8 @@ __all__ = ["timetag_split", ]
 
 
 # Divide exposures into sub-exposures for TIME-TAG data and process them
-def timetag_split(dataset, prefix, output_dir, target_snr,
-                  max_n_subexposures, clean_intermediate_steps=True):
+def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
+                  temporal_resolution=None, clean_intermediate_steps=True):
     """
     Creates a new time-series of x1d fits files of an HST/COS dataset.
 
@@ -45,23 +45,19 @@ def timetag_split(dataset, prefix, output_dir, target_snr,
     output_dir : ``str``
         Path to output directory.
 
-    target_snr : ``float``
-        Minimum signal-to-noise ratio (SNR) that each sub-exposure in the time
-        series should have. This SNR is calculated by integrating the counts
-        in the entire spectrum and then taking the square root of this value.
+    n_subexposures : ``int``
+        Number of subexposures to produce in the time series. This value is
+        overridden if the ``temporal_resolution`` is defined. Default is 10.
 
-    max_n_subexposures : ``int``
-        Maximum number of subexposures to produce in the time series. This is
-        useful for avoiding large file sizes.
+    temporal_resolution : ``float``, ``int`` or ``None``, optional
+        Temporal resolution in unit of seconds for the time series. If ``None``,
+        then the temporal resolution will be defined by ``n_subexposures``.
+        If not ``None``, then the number of subexposures is overridden by the
+        temporal resolution. Default is ``None``.
 
     clean_intermediate_steps : ``bool``, optional
         Sets whether intermediate steps should be cleaned up after each run.
         Default is ``True``.
-
-    Returns
-    -------
-    n_subexposures : ``int``
-        Number of subexposures in the time series.
     """
     # Checks whether output directory is different from prefix
     if output_dir == prefix:
@@ -82,23 +78,10 @@ def timetag_split(dataset, prefix, output_dir, target_snr,
 
     # Extracting some useful information
     exp_time = x1d_header_1['EXPTIME']
-    net_counts = x1d_data['NET'][0] * exp_time
 
-    # Calculate integrated counts in the spectrum
-    int_counts = np.sum(net_counts)
-    rough_noise_level = np.sqrt(int_counts)
-    rough_snr_full_exposure = int_counts / rough_noise_level
-
-    # If the SNR of the full exposure is too low in the first place,
-    # then simply do 5 subexposures as a standard
-    if rough_snr_full_exposure < 10:
-        n_subexposures = 5
-    else:
-        target_counts_per_subexposure = target_snr ** 2
-        n_subexposures = round(int_counts / target_counts_per_subexposure)
-
-    if n_subexposures > max_n_subexposures:
-        n_subexposures = max_n_subexposures
+    # Define the number of sub-exposures
+    if temporal_resolution is not None:
+        n_subexposures = int(round(exp_time / temporal_resolution))
     else:
         pass
 
@@ -215,5 +198,3 @@ def timetag_split(dataset, prefix, output_dir, target_snr,
         remove_list = glob.glob(output_dir + dataset + '_?_corrtag_*.fits')
         for item in remove_list:
             os.remove(item)
-
-    return n_subexposures
