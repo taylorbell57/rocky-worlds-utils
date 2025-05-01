@@ -66,9 +66,8 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
 
     x1d_filename = dataset + '_x1d.fits'
 
-    x1d_header_0 = fits.getdata(str(prefix) + '/' + x1d_filename, 0)
+    x1d_header_0 = fits.getheader(str(prefix) + '/' + x1d_filename, 0)
     x1d_header_1 = fits.getheader(str(prefix) + '/' + x1d_filename, 1)
-    x1d_data = fits.getdata(str(prefix) + '/' + x1d_filename)
 
     # Perform some other checks
     if x1d_header_0['OBSTYPE'] != 'SPECTROSCOPIC':
