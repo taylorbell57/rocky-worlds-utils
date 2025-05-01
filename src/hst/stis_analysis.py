@@ -20,7 +20,8 @@ __all__ = ["timetag_split", ]
 
 # Divide exposures into sub-exposures for TIME-TAG data and process them
 def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
-                  temporal_resolution=None, clean_intermediate_steps=True):
+                  temporal_resolution=None, clean_intermediate_steps=True,
+                  overwrite=False, output_file_name=None):
     """
     Creates a new time-series of x1d fits files of an HST/STIS dataset.
 
@@ -48,11 +49,21 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
     clean_intermediate_steps : ``bool``, optional
         Sets whether intermediate steps should be cleaned up after each run.
         Default is ``True``.
+
+    overwrite : ``bool``, optional
+        Overwrite the output file if it already exists. Default is ``False``.
+
+    output_file_name : ``str`` or ``None``, optional
+        Sets the name of the output file. If set, it must contain the extension
+        ``.fits``. If ``None``, then the default output file name is
+        ``[dataset]_ts_x1d.fits``. Default is ``None``.
     """
-    # Checks whether output directory is different from prefix
+    # Initial checks
     if output_dir == prefix:
         raise ValueError('The output directory must be different '
                                     'from the prefix.')
+    if output_file_name[:-5] != '.fits':
+        raise ValueError('The extension of the output file must be .fits.')
 
     x1d_filename = dataset + '_x1d.fits'
 
@@ -105,8 +116,24 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
     extract_bk1_offset = x1d_data['BK1OFFST'][0]
     extract_bk2_offset = x1d_data['BK2OFFST'][0]
 
+    # Setup the output file
+    if output_file_name is None:
+        output_file = str(output_dir) + '/' + dataset + '_ts_x1d.fits'
+    else:
+        output_file = str(output_dir) + '/' + output_file_name
+
+    # Test if it exists, and if it does, delete it if overwrite is True
+    if os.path.isfile(output_file):
+        if overwrite is False:
+            raise IOError('Time-tag split output file already exists.')
+        else:
+            os.remove(output_file)
+    else:
+        pass
+
+    # Process the time series
     stistools.x1d.x1d(str(output_dir) + '/' + dataset + '_ts_flt.fits',
-                      output=str(output_dir) + '/' + dataset + '_ts_x1d.fits',
+                      output=output_file,
                       maxsrch=0,
                       # Setting this to zero ensures that code will not look for
                       # trace location
