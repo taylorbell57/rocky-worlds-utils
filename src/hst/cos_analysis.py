@@ -17,21 +17,44 @@ import glob
 import calcos
 import shutil
 import multiprocessing
+import warnings
 
 from calcos.x1d import concatenateSegments
 from astropy.io import fits
-
-
-# Change the following if you do not want to use all CPUs
-__N_PROCESSES = multiprocessing.cpu_count()
+from IPython import get_ipython
 
 __all__ = ["timetag_split", ]
+
+
+# Turn off parallelization if Jupyter notebook is being used
+def _is_running_in_jupyter():
+    try:
+        shell = get_ipython().__class__.__name__
+        if shell == 'ZMQInteractiveShell':
+            return True   # Jupyter Notebook or JupyterLab
+        elif shell == 'TerminalInteractiveShell':
+            return False  # IPython terminal
+        else:
+            return False  # Other environment
+    except NameError:
+        return False      # Standard Python interpreter'
+if _is_running_in_jupyter():
+    warnings.warn("Jupyter environment detected: Parallelized COS data "
+                  "reduction is turned off.")
+    _multiprocess = False
+    __N_PROCESSES = 1
+else:
+    __N_PROCESSES = multiprocessing.cpu_count()
+    print('{} processing units available for parallelized COS data '
+          'reduction.'.format(__N_PROCESSES))
+    _multiprocess = True
 
 
 # Divide exposures into sub-exposures for TIME-TAG data and process them
 def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
                   temporal_resolution=None, clean_intermediate_steps=True,
-                  overwrite=False, output_file_name=None):
+                  overwrite=False, output_file_name=None,
+                  multiprocess=_multiprocess, n_cpus=__N_PROCESSES):
     """
     Creates a new time-series of x1d fits files of an HST/COS dataset.
 
@@ -67,6 +90,14 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
         Sets the name of the output file. If set, it must contain the extension
         ``.fits``. If ``None``, then the default output file name is
         ``[dataset]_ts_x1d.fits``. Default is ``None``.
+
+    multiprocess : ``bool``, optional
+        Sets whether multiprocessing should be used. If using Jupyter notebooks,
+        it is recommended to set this to ``False``. Default is ``True``.
+
+    n_cpus : ``int``, optional
+        Number of CPU cores to use in data reduction. Default is the maximum
+        number of available units in your system.
     """
     # Initial checks
     if output_dir == prefix:
@@ -140,10 +171,14 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
     # Extract the tag-split spectra
     split_list = glob.glob(output_dir + dataset + '_?_?_corrtag.fits')
 
-    with multiprocessing.Pool(processes=__N_PROCESSES) as pool:
-        _ = pool.starmap(
-            calcos.calcos, [(subexposure, output_dir + 'temp/')
-                            for subexposure in split_list])
+    if multiprocess is True:
+        with multiprocessing.Pool(processes=n_cpus) as pool:
+            _ = pool.starmap(
+                calcos.calcos, [(subexposure, output_dir + 'temp/')
+                                for subexposure in split_list])
+    else:
+        for subexposure in split_list:
+            _ = calcos.calcos(subexposure, output_dir  + 'temp/')
 
     # Move x1ds to output folder
     split_list = glob.glob(output_dir + 'temp/' + dataset + '*_x1d.fits')

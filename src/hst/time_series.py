@@ -22,7 +22,8 @@ __all__ = ["integrate_flux", ]
 # This function integrates the flux within a wavelength range for given arrays
 # for wavelength and flux
 def integrate_flux(wavelength_range, wavelength_list, flux_list, gross_list,
-                   net_list, exposure_time, poisson_interval='sherpagehrels'):
+                   net_list, exposure_time, poisson_interval='sherpagehrels',
+                   return_integrated_gross=False):
     """
     Integrate fluxes from HST STIS and COS spectra within a range of
     wavelengths. This code takes into account fractional pixels and correctly
@@ -55,6 +56,10 @@ def integrate_flux(wavelength_range, wavelength_list, flux_list, gross_list,
         ``’frequentist-confidence’`` (same as those in
         ``astropy.stats.poisson_conf_interval``). Default value is
         ``'sherpagehrels'``.
+
+    return_integrated_gross : ``bool``, optional
+        Sets whether the function returns the integrated gross and error (in
+        counts) in addition to the flux. Default value is ``False``.
 
     Returns
     -------
@@ -99,13 +104,18 @@ def integrate_flux(wavelength_range, wavelength_list, flux_list, gross_list,
     gross_error = (poisson_conf_interval(integrated_gross,
                                          interval=poisson_interval) -
                    integrated_gross)
-    integrated_error = (-gross_error[0] + gross_error[
-        1]) / 2 * mean_sensitivity / exposure_time  # Take the average error for
-    # simplicity
+    # Take the average gross error for simplicity
+    average_gross_error = (-gross_error[0] + gross_error[1]) / 2
+    integrated_error = average_gross_error * mean_sensitivity / exposure_time
 
     integrated_flux = (full_pixel_flux + fractional_flux_left +
                        fractional_flux_right)
-    return integrated_flux, integrated_error
+
+    if return_integrated_gross is False:
+        return integrated_flux, integrated_error
+    else:
+        return (integrated_flux, integrated_error, integrated_gross,
+                average_gross_error)
 
 
 # Read the time-series fits file
