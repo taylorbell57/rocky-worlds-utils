@@ -17,7 +17,6 @@ import glob
 import calcos
 import shutil
 import multiprocessing
-import warnings
 
 from calcos.x1d import concatenateSegments
 from astropy.io import fits
@@ -139,7 +138,7 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
 
     # Run the tag split data in the CalCOS pipeline
     # Some hack necessary to avoid IO error when using x1dcorr
-    split_list = glob.glob(output_dir + dataset + '_?_corrtag_?.fits')
+    split_list = glob.glob(output_dir + dataset + '_*_corrtag_*.fits')
     for item in split_list:
         char_list = list(item)
         char_list.insert(-13, char_list.pop(-6))
@@ -149,7 +148,7 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
         os.rename(item, new_item)
 
     # Extract the tag-split spectra
-    split_list = glob.glob(output_dir + dataset + '_?_?_corrtag.fits')
+    split_list = glob.glob(output_dir + dataset + '_*_*_corrtag.fits')
 
     if multiprocess is True:
         try:
@@ -170,7 +169,7 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
     # Move x1ds to output folder
     split_list = glob.glob(output_dir + 'temp/' + dataset + '*_x1d.fits')
     for subexposure in split_list:
-        shutil.move(subexposure, output_dir + dataset + subexposure[-13:])
+        shutil.move(subexposure, output_dir)
 
     # Clean the intermediate steps files
     if clean_intermediate_steps is True:
@@ -187,30 +186,21 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
         link = ""
         new_subexposure = link.join(char_list)
         os.rename(subexposure, new_subexposure)
-    split_list = glob.glob(output_dir + dataset + '*_x1d.fits')
-    for subexposure in split_list:
-        char_list = list(subexposure)
-        char_list.insert(-5, char_list.pop(-9))
-        char_list.insert(-5, char_list.pop(-10))
-        link = ""
-        new_subexposure = link.join(char_list)
-        os.rename(subexposure, new_subexposure)
 
     # Concatenate segments `a` and `b` of the detector
     for i in range(n_subexposures):
-        x1d_list = glob.glob(output_dir + dataset + '_%i_x1d_?.fits' % (i + 1))
+        x1d_list = glob.glob(output_dir + dataset + '_%i_?_x1d.fits' % (i + 1))
         concatenateSegments(x1d_list, output_dir + dataset +
                             '_%i' % (i + 1) + '_x1d.fits')
 
     # Remove more intermediate steps
     if clean_intermediate_steps is True:
-        remove_list = glob.glob(output_dir + dataset + '_?_x1d_?.fits')
+        remove_list = glob.glob(output_dir + dataset + '_*_*_x1d.fits')
         for item in remove_list:
             os.remove(item)
 
     # Merge the splits into a single time-series fits file, like it's done in
     # the STIS code
-    # new_fits_filename = dataset + '_ts_x1d.fits'
     with fits.open(output_dir + dataset + '_1_x1d.fits') as hdu:
         primary_header = hdu[0].header
         primary_data = hdu[0].data
@@ -225,7 +215,7 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
 
     for i in range(n_subexposures - 1):
         with fits.open(output_dir + dataset + '_{}_x1d.fits'.format(
-                str(i + 1))) as hdu:
+                str(i + 2))) as hdu:
             next_bintable_header = hdu[1].header
             next_bintable_data = hdu[1].data
         next_bintable_hdu = fits.BinTableHDU(header=next_bintable_header,
@@ -238,9 +228,8 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
 
     # Remove last intermediate steps
     if clean_intermediate_steps is True:
-        remove_list = glob.glob(output_dir + dataset + '_?_x1d.fits')
-        for item in remove_list:
-            os.remove(item)
-        remove_list = glob.glob(output_dir + dataset + '_?_corrtag_*.fits')
+        for i in range(n_subexposures):
+            os.remove(output_dir + dataset + '_%i_x1d.fits' % (i + 1))
+        remove_list = glob.glob(output_dir + dataset + '_*_corrtag_*.fits')
         for item in remove_list:
             os.remove(item)
