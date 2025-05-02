@@ -30,7 +30,8 @@ __all__ = ["timetag_split", ]
 
 # Divide exposures into sub-exposures for TIME-TAG data and process them
 def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
-                  temporal_resolution=None, clean_intermediate_steps=True):
+                  temporal_resolution=None, clean_intermediate_steps=True,
+                  overwrite=False, output_file_name=None):
     """
     Creates a new time-series of x1d fits files of an HST/COS dataset.
 
@@ -58,11 +59,35 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
     clean_intermediate_steps : ``bool``, optional
         Sets whether intermediate steps should be cleaned up after each run.
         Default is ``True``.
+
+    overwrite : ``bool``, optional
+        Overwrite the output file if it already exists. Default is ``False``.
+
+    output_file_name : ``str`` or ``None``, optional
+        Sets the name of the output file. If set, it must contain the extension
+        ``.fits``. If ``None``, then the default output file name is
+        ``[dataset]_ts_x1d.fits``. Default is ``None``.
     """
-    # Checks whether output directory is different from prefix
+    # Initial checks
     if output_dir == prefix:
         raise ValueError('The output directory must be different '
                                     'from the prefix.')
+    if output_file_name is None:
+        output_file_name = dataset + '_ts_x1d.fits'
+        output_file = str(output_dir) + '/' + output_file_name
+    elif output_file_name[:-5] != '.fits':
+        raise ValueError('The extension of the output file must be .fits.')
+    else:
+        output_file = str(output_dir) + '/' + output_file_name
+
+    # Test if output file exists, and if it does, delete it if overwrite is True
+    if os.path.isfile(output_file):
+        if overwrite is False:
+            raise IOError('Time-tag split output file already exists.')
+        else:
+            os.remove(output_file)
+    else:
+        pass
 
     x1d_filename = dataset + '_x1d.fits'
 
@@ -163,13 +188,13 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
 
     # Merge the splits into a single time-series fits file, like it's done in
     # the STIS code
-    new_fits_filename = dataset + '_ts_x1d.fits'
+    # new_fits_filename = dataset + '_ts_x1d.fits'
     with fits.open(output_dir + dataset + '_1_x1d.fits') as hdu:
         primary_header = hdu[0].header
         primary_data = hdu[0].data
         bintable_header = hdu[1].header
         bintable_data = hdu[1].data
-        primary_header['FILENAME'] = new_fits_filename
+        primary_header['FILENAME'] = output_file_name
 
     new_primary_hdu = fits.PrimaryHDU(header=primary_header, data=primary_data)
     new_bintable_hdu = fits.BinTableHDU(header=bintable_header,
@@ -187,7 +212,7 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
 
     # Write time series to a new fits file
     hdul = fits.HDUList(hdu_list)
-    hdul.writeto(output_dir + new_fits_filename)
+    hdul.writeto(output_file)
 
     # Remove last intermediate steps
     if clean_intermediate_steps is True:
