@@ -21,40 +21,20 @@ import warnings
 
 from calcos.x1d import concatenateSegments
 from astropy.io import fits
-from IPython import get_ipython
 
 __all__ = ["timetag_split", ]
 
 
-# Turn off parallelization if Jupyter notebook is being used
-def _is_running_in_jupyter():
-    try:
-        shell = get_ipython().__class__.__name__
-        if shell == 'ZMQInteractiveShell':
-            return True   # Jupyter Notebook or JupyterLab
-        elif shell == 'TerminalInteractiveShell':
-            return False  # IPython terminal
-        else:
-            return False  # Other environment
-    except NameError:
-        return False      # Standard Python interpreter'
-if _is_running_in_jupyter():
-    warnings.warn("Jupyter environment detected: Parallelized COS data "
-                  "reduction is turned off.")
-    _multiprocess = False
-    __N_PROCESSES = 1
-else:
-    __N_PROCESSES = multiprocessing.cpu_count()
-    print('{} processing units available for parallelized COS data '
-          'reduction.'.format(__N_PROCESSES))
-    _multiprocess = True
+__N_PROCESSES = multiprocessing.cpu_count()
+print('{} processing units available for parallelized COS data '
+      'reduction.'.format(__N_PROCESSES))
 
 
 # Divide exposures into sub-exposures for TIME-TAG data and process them
 def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
                   temporal_resolution=None, clean_intermediate_steps=True,
-                  overwrite=False, output_file_name=None,
-                  multiprocess=_multiprocess, n_cpus=__N_PROCESSES):
+                  overwrite=False, output_file_name=None, multiprocess=True,
+                  n_cpus=__N_PROCESSES):
     """
     Creates a new time-series of x1d fits files of an HST/COS dataset.
 
@@ -172,10 +152,17 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
     split_list = glob.glob(output_dir + dataset + '_?_?_corrtag.fits')
 
     if multiprocess is True:
-        with multiprocessing.Pool(processes=n_cpus) as pool:
-            _ = pool.starmap(
-                calcos.calcos, [(subexposure, output_dir + 'temp/')
-                                for subexposure in split_list])
+        try:
+            with multiprocessing.Pool(processes=n_cpus) as pool:
+                _ = pool.starmap(
+                    calcos.calcos, [(subexposure, output_dir + 'temp/')
+                                    for subexposure in split_list])
+        except FileExistsError:
+            warnings.warn("Error encountered during multiprocessing. Temporary "
+                          "files will be deleted.")
+            for subexposure in split_list:
+                os.remove(subexposure)
+            shutil.rmtree(output_dir + 'temp/')
     else:
         for subexposure in split_list:
             _ = calcos.calcos(subexposure, output_dir  + 'temp/')
