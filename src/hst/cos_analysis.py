@@ -158,11 +158,11 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
                     calcos.calcos, [(subexposure, output_dir + 'temp/')
                                     for subexposure in split_list])
         except FileExistsError:
-            warnings.warn("Error encountered during multiprocessing. Temporary "
-                          "files will be deleted.")
             for subexposure in split_list:
                 os.remove(subexposure)
             shutil.rmtree(output_dir + 'temp/')
+            raise OSError("Error encountered during multiprocessing. Temporary "
+                          "files were deleted.")
     else:
         for subexposure in split_list:
             _ = calcos.calcos(subexposure, output_dir  + 'temp/')
