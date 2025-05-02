@@ -22,7 +22,7 @@ __all__ = ["integrate_flux", ]
 # This function integrates the flux within a wavelength range for given arrays
 # for wavelength and flux
 def integrate_flux(wavelength_range, wavelength_list, flux_list, gross_list,
-                   net_list, exposure_time):
+                   net_list, exposure_time, poisson_interval='sherpagehrels'):
     """
     Integrate fluxes from HST STIS and COS spectra within a range of
     wavelengths. This code takes into account fractional pixels and correctly
@@ -48,6 +48,13 @@ def integrate_flux(wavelength_range, wavelength_list, flux_list, gross_list,
 
     exposure_time : ``float``
         Exposure time in seconds.
+
+    poisson_interval : ``str``, optional
+        Poisson confidence interval to use in calculation of errors. The options
+        are ``‘root-n’``, ``’root-n-0’``, ``’pearson’``, ``’sherpagehrels’, and
+        ``’frequentist-confidence’`` (same as those in
+        ``astropy.stats.poisson_conf_interval``). Default value is
+        ``'sherpagehrels'``.
 
     Returns
     -------
@@ -90,7 +97,7 @@ def integrate_flux(wavelength_range, wavelength_list, flux_list, gross_list,
     sensitivity = flux_list[full_indexes] / net_list[full_indexes]
     mean_sensitivity = np.mean(sensitivity)
     gross_error = (poisson_conf_interval(integrated_gross,
-                                        interval='sherpagehrels') -
+                                         interval=poisson_interval) -
                    integrated_gross)
     integrated_error = (-gross_error[0] + gross_error[
         1]) / 2 * mean_sensitivity / exposure_time  # Take the average error for
