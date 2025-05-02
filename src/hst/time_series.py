@@ -155,7 +155,7 @@ def read_fits(dataset, prefix):
             wavelength_array[i] += data['WAVELENGTH']
             flux_array[i] += data['FLUX']
             error_array[i] += data['ERROR']
-            gross_array[i] += data['GROSS'] * exposure_time[i]
+            gross_array[i] += data['GROSS']
             net_array[i] += data['NET']
 
     time_series_dict = {
@@ -164,7 +164,8 @@ def read_fits(dataset, prefix):
         'cenwave': cenwave,
         'exp_start': exposure_start,  # MJD
         'exp_end': exposure_end,  # MJD
-        'time': time_stamp,  # MJD
+        'time_stamp': time_stamp,  # MJD
+        'exp_time': exposure_time,  # s
         'wavelength': wavelength_array,  # Angstrom
         'flux': flux_array,  # erg / s / cm ** 2 / A
         'error': error_array,  # erg / s / cm ** 2 / A
