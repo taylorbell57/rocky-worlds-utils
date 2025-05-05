@@ -15,7 +15,7 @@ import os
 
 from astropy.io import fits
 
-__all__ = ["timetag_split", ]
+__all__ = ["timetag_split", "extract"]
 
 
 # Divide exposures into sub-exposures for TIME-TAG data and process them
@@ -123,26 +123,10 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
     # exposure and turn off the automatic trace finding (set by the maxsrch
     # parameter)
     extract_yloc = x1d_data['A2CENTER'][0]
-    extract_size = x1d_data['EXTRSIZE'][0]
-    extract_bk1_size = x1d_data['BK1SIZE'][0]
-    extract_bk2_size = x1d_data['BK2SIZE'][0]
-    extract_bk1_offset = x1d_data['BK1OFFST'][0]
-    extract_bk2_offset = x1d_data['BK2OFFST'][0]
 
     # Process the time series
-    stistools.x1d.x1d(str(output_dir) + '/' + dataset + '_ts_flt.fits',
-                      output=output_file,
-                      maxsrch=0,
-                      # Setting this to zero ensures that code will not look for
-                      # trace location
-                      a2center=extract_yloc,
-                      extrsize=extract_size,
-                      backcorr='perform',
-                      bk1size=extract_bk1_size,
-                      bk2size=extract_bk2_size,
-                      bk1offst=extract_bk1_offset,
-                      bk2offst=extract_bk2_offset
-                      )
+    extract(dataset + '_ts', str(output_dir) + '/', str(output_dir) + '/',
+            extract_yloc, overwrite=overwrite)
 
     # Clean intermediate steps if requested
     if clean_intermediate_steps is True:
@@ -150,3 +134,119 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
         os.remove(str(output_dir) + '/' + dataset + '_ts_raw.fits')
     else:
         pass
+
+
+# Extract STIS first-order spectra with user-defined trace positions
+def extract(dataset, prefix, output_dir, a2center, extraction_size=None,
+            background1_size=None, background2_size=None,
+            background1_offset=None, background2_offset=None, overwrite=False,
+            output_file_name=None):
+    """
+    Sometimes CALSTIS cannot properly find the trace location of faint FUV
+    targets in first-order spectroscopy. This function allows the user to
+    extract STIS first-order spectra in user-defined positions.
+
+    Parameters
+    ----------
+    dataset : ``str``
+        Dataset name (example: ``ld9m17d3q``).
+
+    prefix : ``str``
+        Fixed path to dataset directory.
+
+    output_dir : ``str``
+        Path to output directory.
+
+    a2center : ``float``
+        Location of the trace where it crosses the center of the detector in the
+        dispersion direction.
+
+    extraction_size : ``float`` or ``None``, optional
+        Height of the spectral extraction in units of pixels. If ``None``, adopt
+        the same value as the input dataset. Default is ``None``.
+
+    background1_size : ``float`` or ``None``, optional
+        Height of the lower background extraction in units of pixels. If
+        ``None``, adopt the same value as the input dataset. Default is
+        ``None``.
+
+    background2_size : ``float`` or ``None``, optional
+        Height of the upper background extraction in units of pixels. If
+        ``None``, adopt the same value as the input dataset. Default is
+        ``None``.
+
+    background1_offset : ``float`` or ``None``, optional
+        Offset of the lower background extraction in units of pixels. If
+        ``None``, adopt the same value as the input dataset. Default is
+        ``None``.
+
+    background2_offset : ``float`` or ``None``, optional
+        Offset of the upper background extraction in units of pixels. If
+        ``None``, adopt the same value as the input dataset. Default is
+        ``None``.
+
+    overwrite : ``bool``, optional
+        Overwrite the output file if it already exists. Default is ``False``.
+
+    output_file_name : ``str`` or ``None``, optional
+        Sets the name of the output file. If set, it must contain the extension
+        ``.fits``. If ``None``, then the default output file name is
+        ``[dataset]_ts_x1d.fits``. Default is ``None``.
+    """
+    # Initial checks
+    if prefix[-1] != '/':
+        prefix += '/'
+    else:
+        pass
+    if output_dir[-1] != '/':
+        output_dir += '/'
+    else:
+        pass
+
+    # I/O
+    input_file = str(prefix) + dataset + '_flt.fits'
+    input_file_data = fits.getdata(str(prefix) + dataset + '_x1d.fits', ext=1)
+    if output_file_name is not None:
+        output_file = output_dir + output_file_name
+    else:
+        output_file = output_dir + dataset + '_x1d.fits'
+
+    # Test if output file exists, and if it does, delete it if overwrite is True
+    if os.path.isfile(output_file):
+        if overwrite is False:
+            raise IOError('Extracted output spectrum already exists.')
+        else:
+            os.remove(output_file)
+    else:
+        pass
+
+    # Set default values for extraction parameters
+    if extraction_size is None:
+        extraction_size = input_file_data['EXTRSIZE'][0]
+
+    if background1_size is None:
+        background1_size = input_file_data['BK1SIZE'][0]
+
+    if background2_size is None:
+        background2_size = input_file_data['BK2SIZE'][0]
+
+    if background1_offset is None:
+        background1_offset = input_file_data['BK1OFFST'][0]
+
+    if background2_offset is None:
+        background2_offset = input_file_data['BK2OFFST'][0]
+
+    # Process the time series
+    stistools.x1d.x1d(input_file,
+                      output=output_file,
+                      maxsrch=0,
+                      # Setting this to zero ensures that code will not look for
+                      # trace location
+                      a2center=a2center,
+                      extrsize=extraction_size,
+                      backcorr='perform',
+                      bk1size=background1_size,
+                      bk2size=background2_size,
+                      bk1offst=background1_offset,
+                      bk2offst=background2_offset
+                      )
