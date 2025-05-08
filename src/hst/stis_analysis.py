@@ -28,7 +28,7 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
     Parameters
     ----------
     dataset : ``str``
-        Dataset name (example: ``ld9m17d3q``).
+        Dataset name (example: ``o4z301040``).
 
     prefix : ``str``
         Fixed path to dataset directory.
@@ -154,7 +154,7 @@ def extract(dataset, prefix, output_dir, a2center, extraction_size=11,
     Parameters
     ----------
     dataset : ``str``
-        Dataset name (example: ``ld9m17d3q``).
+        Dataset name (example: ``o4z301040``).
 
     prefix : ``str``
         Fixed path to dataset directory.

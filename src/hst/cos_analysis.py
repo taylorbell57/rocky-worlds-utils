@@ -218,6 +218,8 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
                 str(i + 2))) as hdu:
             next_bintable_header = hdu[1].header
             next_bintable_data = hdu[1].data
+        # Correct the EXPSTART value because there is a bug in costools.splittag
+        next_bintable_header['EXPSTART'] += time_bins[i + 1] / 24 / 3600
         next_bintable_hdu = fits.BinTableHDU(header=next_bintable_header,
                                              data=next_bintable_data)
         hdu_list.append(next_bintable_hdu)

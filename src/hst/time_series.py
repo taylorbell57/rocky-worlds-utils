@@ -74,8 +74,8 @@ def integrate_flux(wavelength_range, wavelength_list, flux_list, gross_list,
     # integrate the pixels that are fully inside the range
     full_indexes = np.where((wavelength_list > wavelength_range[0]) & (
                 wavelength_list < wavelength_range[1]))[0]
-    full_pixel_flux = simpson(flux_list[full_indexes],
-                              wavelength_list[full_indexes])
+    full_pixel_flux = simpson(y=flux_list[full_indexes],
+                              x=wavelength_list[full_indexes])
 
     # And now we deal with the flux in the fractional pixels
     index_left = full_indexes[0]
@@ -100,7 +100,7 @@ def integrate_flux(wavelength_range, wavelength_list, flux_list, gross_list,
     integrated_gross = (full_pixel_gross + fractional_gross_left +
                         fractional_gross_right)
     sensitivity = flux_list[full_indexes] / net_list[full_indexes]
-    mean_sensitivity = np.mean(sensitivity)
+    mean_sensitivity = np.nanmean(sensitivity)
     gross_error = (poisson_conf_interval(integrated_gross,
                                          interval=poisson_interval) -
                    integrated_gross)
@@ -124,13 +124,10 @@ def read_fits(dataset, prefix):
     Read data from a time-series file processed with the ``cos_analysis`` and
     ``stis_analysis`` modules.
 
-    TODO: Add an option to splice spectra across STIS echelle orders or COS
-    TODO: segments
-
     Parameters
     ----------
     dataset : ``str``
-        Dataset name (example: ``ld9m17d3q``).
+        Dataset name (example: ``ld9m17d3q`` or ``o4z301040``).
 
     prefix : ``str``
         Fixed path to dataset directory.
