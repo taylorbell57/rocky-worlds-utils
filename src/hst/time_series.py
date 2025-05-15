@@ -11,12 +11,14 @@ from __future__ import (division, print_function, absolute_import,
                         unicode_literals)
 
 import numpy as np
+import astropy.units as u
 
 from astropy.stats import poisson_conf_interval
+from astropy.time import Time
 from scipy.integrate import simpson
 from astropy.io import fits
 
-__all__ = ["integrate_flux", ]
+__all__ = ["integrate_flux", "read_fits"]
 
 
 # This function integrates the flux within a wavelength range for given arrays
@@ -69,6 +71,13 @@ def integrate_flux(wavelength_range, wavelength_list, flux_list, gross_list,
     integrated_error : ``float``
         Uncertainty of the integrated flux.
     """
+    # Raise an error if the user-defined wavelength range is outside of the
+    # hard boundaries of the wavelength list
+    if (wavelength_range[0] > wavelength_list[-1]) or \
+            (wavelength_range[1] < wavelength_list[0]):
+        raise ValueError('Wavelength_range must be within the boundaries of '
+                         'the wavelength_list.')
+
     # Since the pixels may not range exactly in the interval above,
     # we will need to deal with fractional pixels. But first, let's
     # integrate the pixels that are fully inside the range
@@ -119,7 +128,7 @@ def integrate_flux(wavelength_range, wavelength_list, flux_list, gross_list,
 
 
 # Read the time-series fits file
-def read_fits(dataset, prefix):
+def read_fits(dataset, prefix, target_name=None):
     """
     Read data from a time-series file processed with the ``cos_analysis`` and
     ``stis_analysis`` modules.
@@ -132,6 +141,10 @@ def read_fits(dataset, prefix):
     prefix : ``str``
         Fixed path to dataset directory.
 
+    target_name : ``str``, optional
+        Name of observed target. If ``None``, uses the default value retrieved
+        from the header information. Default is ``None``.
+
     Returns
     -------
     time_series_dict : ``dict``
@@ -141,6 +154,12 @@ def read_fits(dataset, prefix):
     instrument = x1d_header_0['INSTRUME']
     grating = x1d_header_0['OPT_ELEM']
     cenwave = x1d_header_0['CENWAVE']
+    aperture = x1d_header_0['PROPAPER']
+    declination = x1d_header_0['DEC_TARG']
+    right_ascension = x1d_header_0['RA_TARG']
+
+    if target_name is None:
+        target_name = x1d_header_0['TARGNAME']
 
     with fits.open(str(prefix) + '/' + x1d_filename) as hdu:
         n_subexposures = len(hdu) - 1
@@ -174,12 +193,17 @@ def read_fits(dataset, prefix):
 
     time_series_dict = {
         'instrument': instrument,
+        'target': target_name,
+        'ra': right_ascension,
+        'dec': declination,
         'grating': grating,
+        'aperture': aperture,
         'cenwave': cenwave,
         'exp_start': exposure_start,  # MJD
         'exp_end': exposure_end,  # MJD
         'time_stamp': time_stamp,  # MJD
         'exp_time': exposure_time,  # s
+        'n_detector_segments': data_shape[0],
         'wavelength': wavelength_array,  # Angstrom
         'flux': flux_array,  # erg / s / cm ** 2 / A
         'error': error_array,  # erg / s / cm ** 2 / A
@@ -188,3 +212,183 @@ def read_fits(dataset, prefix):
     }
 
     return time_series_dict
+
+
+# Calculate light curve
+def generate_light_curve(dataset, prefix, wavelength_range=None):
+    """
+
+    Parameters
+    ----------
+    dataset
+    prefix
+    wavelength_range
+
+    Returns
+    -------
+
+    """
+    if isinstance(dataset, str):
+        n_dataset = 1
+        time_series_dict = [read_fits(dataset, prefix), ]
+    elif isinstance(dataset, list):
+        n_dataset = len(dataset)
+        time_series_dict = [read_fits(dataset, prefix) for dataset in dataset]
+    else:
+        raise TypeError('Dataset must be a string or a list.')
+
+    n_segments = time_series_dict[0]['n_detector_segments']
+    n_subexposures = len(time_series_dict[0]['time_stamp'])
+
+    # We are going to integrate fluxes within the wavelength range for each
+    # segment, each subexposure, and each dataset
+    time = np.zeros([n_dataset, n_subexposures])
+    flux = np.zeros([n_dataset, n_subexposures])
+    flux_error = np.zeros([n_dataset, n_subexposures])
+
+    for i in range(n_dataset):
+        for j in range(n_subexposures):
+            wavelength = time_series_dict[i]['wavelength'][j]
+            flux_density = time_series_dict[i]['flux'][j]
+            gross = time_series_dict[i]['gross_counts'][j]
+            net = time_series_dict[i]['net'][j]
+            current_exp_time = time_series_dict[i]['exp_time'][j]
+            int_flux = 0.0
+            int_error_squared = 0.0
+            time[i, j] = time_series_dict[i]['time_stamp'][j]
+            for k in range(n_segments):
+                # Figure out the wavelength range
+                if wavelength_range is None:
+                    wl_0 = min(wavelength[k])
+                    wl_1 = max(wavelength[k])
+                    current_wavelength_range = np.array([wl_0, wl_1])
+                else:
+                    current_wavelength_range = wavelength_range
+                try:
+                    current_int_flux, current_int_error = (
+                        integrate_flux(current_wavelength_range, wavelength[k],
+                                       flux_density[k], gross[k], net[k],
+                                       current_exp_time))
+                except ValueError:
+                    current_int_flux = 0.0
+                    current_int_error = 0.0
+                int_flux += current_int_flux
+                int_error_squared += current_int_error ** 2
+            int_error = np.sqrt(int_error_squared)
+            flux[i, j] = int_flux
+            flux_error[i, j] = int_error
+
+    # Flatten the arrays
+    time = time.flatten()
+    flux = flux.flatten()
+    flux_error = flux_error.flatten()
+
+    return time, flux, flux_error
+
+# Create an HLSP file for a time series
+def generate_hlsp(dataset, prefix, output_dir, filename=None,
+                  wavelength_range=None):
+    """
+    Generate a high-level spectral product for a time-series observation.
+
+    Parameters
+    ----------
+    dataset : ``str`` or ``list``
+        Dataset name (example: ``ld9m17d3q`` or ``o4z301040``) or list of
+        dataset names.
+
+    prefix : ``str``
+        Fixed path to datasets directory.
+
+    output_dir : ``str``
+        Path to output directory.
+
+    filename : ``str``, optional
+        Output filename. If ``None``, then the output filename will be
+        ``[dataset]_hslp.fits``. Default is ``None``.
+
+    wavelength_range : array-like, optional
+        List, array or tuple of two floats containing the start and end of the
+        wavelength range to be integrated. If ``None``, the entire wavelength
+        range available in the spectrum will be integrated. Default is ``None``.
+    """
+    if isinstance(dataset, str):
+        time_series_dict = [read_fits(dataset, prefix), ]
+    elif isinstance(dataset, list):
+        time_series_dict = [read_fits(dataset, prefix) for dataset in dataset]
+    else:
+        raise TypeError('Dataset must be a string or a list.')
+
+    # Calculate light curve
+    time_array, flux_array, error_array = (
+        generate_light_curve(dataset, prefix, wavelength_range))
+
+    # Compile lists of meta data
+    exp_start_list = [d['exp_start'] for d in time_series_dict]
+    exp_end_list = [d['exp_end'] for d in time_series_dict]
+    elapsed_time = (
+        ((max(exp_end_list) - min(exp_start_list)) * u.d).to(u.s).value)
+    exposure_time = np.sum(np.array([d['exp_time'] for d in time_series_dict]))
+
+    hdu_0 = fits.PrimaryHDU()
+
+    # Set the common meta data
+    hdu_0.header['DATE-BEG'] = (Time(min(exp_start_list), format='mjd').iso,
+                                'ISO-8601 date-time start of the observation')
+    hdu_0.header['DATE-EDN'] = (Time(max(exp_end_list), format='mjd').iso,
+                                'ISO-8601 date-time end of the observation')
+    hdu_0.header['DOI'] =  ('TBD', 'Digital Object Identifier')
+    hdu_0.header['HLSPID'] = ('RWDDT', 'Identifier of this HLSP collection')
+    hdu_0.header['HLSPLEAD'] = ('TBD', 'Full name of HLSP project lead')
+    hdu_0.header['HLSPNAME'] = ('Rocky Worlds', 'Title of this HLSP project')
+    hdu_0.header['HLSPTARG'] = (time_series_dict[0]['target'],
+                                'Designation of the target')
+    hdu_0.header['HLSPVER'] = (1.0, 'Data product version')
+    hdu_0.header['INSTRUME'] = (time_series_dict[0]['instrument'],
+                                'Instrument used for this observation')
+    hdu_0.header['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
+    hdu_0.header['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/',
+                                'Data license URL')
+    hdu_0.header['MJD-BEG'] = (min(exp_start_list),
+                               'Start of the observation in MJD')
+    hdu_0.header['MJD-END'] = (max(exp_end_list),
+                               'End of the observation in MJD')
+    hdu_0.header['MJD-MID'] = ((max(exp_end_list) + min(exp_start_list)) / 2,
+                               'Mid-time of the observation in MJD')
+    hdu_0.header['OBSERVAT'] = ('HST',
+                                'Observatory used to obtain this observation')
+    hdu_0.header['PROPOSID'] = ('TBD',
+                                'Observatory program/proposal identifier')
+    hdu_0.header['REFERENC'] = ('TBD', 'Bibliographic identifier')
+    hdu_0.header['TELAPSE'] = (elapsed_time,
+                               'Time elapsed between start- and end-time of '
+                               'observation in seconds')
+    hdu_0.header['TELESCOP'] = ('HST', 'Telescope used for this observation')
+    hdu_0.header['TIMESYS'] = ('UTC', 'Time scale of time-related keywords')
+    hdu_0.header['XPOSURE'] = (exposure_time, 'Duration of exposure in seconds,'
+                                              ' exclusive of dead time')
+
+    # Set the light curve meta data
+    hdu_1 = fits.BinTableHDU.from_columns([
+        fits.Column(name='TIME', format='D', array=time_array),
+        fits.Column(name='FLUX', format='D', array=flux_array),
+        fits.Column(name='ERROR', format='D', array=error_array),
+    ])
+    hdu_1.header['APERTURE'] = (time_series_dict[0]['aperture'],
+                                'Aperture used for the exposure')
+    hdu_1.header['DEC_TARG'] = (time_series_dict[0]['dec'],
+                                'Declination coordinate of the target in deg')
+    hdu_1.header['DETECTOR'] = (time_series_dict[0]['detector'],
+                                'Detector used for exposure')
+    hdu_1.header['GRATING'] = (time_series_dict[0]['grating'],
+                              "Grating used for the exposure")
+    hdu_1.header['CENWAVE'] = (time_series_dict[0]['cenwave'],
+                               "Central wavelength used for the exposure")
+    hdu_1.header['RADESYS'] = ('ICRS', 'Celestial coordinate reference system')
+    hdu_1.header['RA_TARG'] = (time_series_dict[0]['ra'],
+                               'Right Ascension coordinate of the target in '
+                               'deg')
+
+    hdu_list = [hdu_0, hdu_1]
+    hdul = fits.HDUList(hdu_list)
+    hdul.writeto(output_dir + filename)
