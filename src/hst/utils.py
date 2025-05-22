@@ -8,8 +8,6 @@ Authors
 - Leonardo dos Santos <<ldsantos@stsci.edu>>
 """
 
-from __future__ import (division, print_function, absolute_import,
-                        unicode_literals)
 import numpy as np
 
 __all__ = ["nearest_index", ]
