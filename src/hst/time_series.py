@@ -157,6 +157,7 @@ def read_fits(dataset, prefix, target_name=None):
     aperture = x1d_header_0['PROPAPER']
     declination = x1d_header_0['DEC_TARG']
     right_ascension = x1d_header_0['RA_TARG']
+    detector = x1d_header_0['DETECTOR']
 
     if target_name is None:
         target_name = x1d_header_0['TARGNAME']
@@ -193,6 +194,7 @@ def read_fits(dataset, prefix, target_name=None):
 
     time_series_dict = {
         'instrument': instrument,
+        'detector': detector,
         'target': target_name,
         'ra': right_ascension,
         'dec': declination,
@@ -217,16 +219,32 @@ def read_fits(dataset, prefix, target_name=None):
 # Calculate light curve
 def generate_light_curve(dataset, prefix, wavelength_range=None):
     """
+    Calculate a light curve for a time-series observation.
 
     Parameters
     ----------
-    dataset
-    prefix
-    wavelength_range
+    dataset : ``str`` or ``list``
+        Dataset name (example: ``ld9m17d3q`` or ``o4z301040``) or list of
+        dataset names.
+
+    prefix : ``str``
+        Fixed path to datasets directory.
+
+    wavelength_range : array-like
+        List, array or tuple of two floats containing the start and end of the
+        wavelength range to be integrated.
 
     Returns
     -------
+    time : ``numpy.ndarray``
+        Time stamps of the light curve in Modified Julian Date (MJD).
 
+    flux : ``numpy.ndarray``
+        Flux values of the light curve in erg / s / cm ** 2.
+
+    flux_error : ``numpy.ndarray``
+        Uncertainties of the flux values of the light curve in
+         erg / s / cm ** 2.
     """
     if isinstance(dataset, str):
         n_dataset = 1
@@ -285,6 +303,7 @@ def generate_light_curve(dataset, prefix, wavelength_range=None):
 
     return time, flux, flux_error
 
+
 # Create an HLSP file for a time series
 def generate_hlsp(dataset, prefix, output_dir, filename=None,
                   wavelength_range=None):
@@ -324,8 +343,8 @@ def generate_hlsp(dataset, prefix, output_dir, filename=None,
         generate_light_curve(dataset, prefix, wavelength_range))
 
     # Compile lists of meta data
-    exp_start_list = [d['exp_start'] for d in time_series_dict]
-    exp_end_list = [d['exp_end'] for d in time_series_dict]
+    exp_start_list = np.array([d['exp_start'] for d in time_series_dict])[0]
+    exp_end_list = np.array([d['exp_end'] for d in time_series_dict])[0]
     elapsed_time = (
         ((max(exp_end_list) - min(exp_start_list)) * u.d).to(u.s).value)
     exposure_time = np.sum(np.array([d['exp_time'] for d in time_series_dict]))
