@@ -16,7 +16,8 @@ from astropy.time import Time
 from scipy.integrate import simpson
 from astropy.io import fits
 
-__all__ = ["integrate_flux", "read_fits"]
+__all__ = ["integrate_flux", "read_fits", "generate_light_curve",
+           "generate_hlsp"]
 
 
 # This function integrates the flux within a wavelength range for given arrays
@@ -68,6 +69,14 @@ def integrate_flux(wavelength_range, wavelength_list, flux_list, gross_list,
 
     integrated_error : ``float``
         Uncertainty of the integrated flux.
+
+    integrated_gross : ``float``
+        Integrated gross counts. Returned only if ``return_integrated_gross`` is
+        set to ``True``.
+
+    average_gross_error :
+        Uncertainty of the integrated gross counts. Returned only if
+        ``return_integrated_gross`` is set to ``True``.
     """
     # Raise an error if the user-defined wavelength range is outside of the
     # hard boundaries of the wavelength list
@@ -215,7 +224,8 @@ def read_fits(dataset, prefix, target_name=None):
 
 
 # Calculate light curve
-def generate_light_curve(dataset, prefix, wavelength_range=None):
+def generate_light_curve(dataset, prefix, wavelength_range=None,
+                         return_integrated_gross=False):
     """
     Calculate a light curve for a time-series observation.
 
@@ -231,6 +241,10 @@ def generate_light_curve(dataset, prefix, wavelength_range=None):
     wavelength_range : array-like
         List, array or tuple of two floats containing the start and end of the
         wavelength range to be integrated.
+
+    return_integrated_gross : ``bool``, optional
+        Sets whether the function returns the integrated gross and error (in
+        counts) in addition to the flux. Default value is ``False``.
 
     Returns
     -------
@@ -261,6 +275,8 @@ def generate_light_curve(dataset, prefix, wavelength_range=None):
     time = np.zeros([n_dataset, n_subexposures])
     flux = np.zeros([n_dataset, n_subexposures])
     flux_error = np.zeros([n_dataset, n_subexposures])
+    gross = np.zeros([n_dataset, n_subexposures])
+    gross_error = np.zeros([n_dataset, n_subexposures])
 
     for i in range(n_dataset):
         for j in range(n_subexposures):
@@ -271,6 +287,8 @@ def generate_light_curve(dataset, prefix, wavelength_range=None):
             current_exp_time = time_series_dict[i]['exp_time'][j]
             int_flux = 0.0
             int_error_squared = 0.0
+            int_gross = 0.0
+            int_gross_err_squared = 0.0
             time[i, j] = time_series_dict[i]['time_stamp'][j]
             for k in range(n_segments):
                 # Figure out the wavelength range
@@ -281,25 +299,48 @@ def generate_light_curve(dataset, prefix, wavelength_range=None):
                 else:
                     current_wavelength_range = wavelength_range
                 try:
-                    current_int_flux, current_int_error = (
-                        integrate_flux(current_wavelength_range, wavelength[k],
-                                       flux_density[k], gross[k], net[k],
-                                       current_exp_time))
+                    if return_integrated_gross is False:
+                        current_int_flux, current_int_error = (
+                            integrate_flux(current_wavelength_range,
+                                           wavelength[k], flux_density[k],
+                                           gross[k], net[k], current_exp_time,
+                                           return_integrated_gross=False))
+                        current_int_gross = 0.0
+                        current_gross_err = 0.0
+                    else:
+                        (current_int_flux, current_int_error, current_int_gross,
+                         current_gross_err) = (
+                            integrate_flux(current_wavelength_range,
+                                           wavelength[k], flux_density[k],
+                                           gross[k], net[k], current_exp_time,
+                                           return_integrated_gross=True))
                 except ValueError:
                     current_int_flux = 0.0
                     current_int_error = 0.0
+                    current_int_gross = 0.0
+                    current_gross_err = 0.0
                 int_flux += current_int_flux
+                int_gross += current_int_gross
                 int_error_squared += current_int_error ** 2
+                int_gross_err_squared += current_gross_err ** 2
             int_error = np.sqrt(int_error_squared)
+            int_gross_error = np.sqrt(int_gross_err_squared)
             flux[i, j] = int_flux
             flux_error[i, j] = int_error
+            gross[i, j] = int_gross
+            gross_error[i, j] = int_gross_error
 
     # Flatten the arrays
     time = time.flatten()
     flux = flux.flatten()
     flux_error = flux_error.flatten()
+    gross = gross.flatten()
+    gross_error = gross_error.flatten()
 
-    return time, flux, flux_error
+    if return_integrated_gross is False:
+        return time, flux, flux_error
+    else:
+        return time, flux, flux_error, gross, gross_error
 
 
 # Create an HLSP file for a time series
@@ -337,8 +378,9 @@ def generate_hlsp(dataset, prefix, output_dir, filename=None,
         raise TypeError('Dataset must be a string or a list.')
 
     # Calculate light curve
-    time_array, flux_array, error_array = (
-        generate_light_curve(dataset, prefix, wavelength_range))
+    time_array, flux_array, error_array, gross_array, gross_error_array = (
+        generate_light_curve(dataset, prefix, wavelength_range,
+                             return_integrated_gross=True))
 
     # Compile lists of meta data
     exp_start_list = np.array([d['exp_start'] for d in time_series_dict])[0]
@@ -389,7 +431,9 @@ def generate_hlsp(dataset, prefix, output_dir, filename=None,
     hdu_1 = fits.BinTableHDU.from_columns([
         fits.Column(name='TIME', format='D', array=time_array),
         fits.Column(name='FLUX', format='D', array=flux_array),
-        fits.Column(name='ERROR', format='D', array=error_array),
+        fits.Column(name='FLUXERROR', format='D', array=error_array),
+        fits.Column(name='COUNTS', format='D', array=gross_array),
+        fits.Column(name='COUNTSERROR', format='D', array=gross_error_array),
     ])
     hdu_1.header['APERTURE'] = (time_series_dict[0]['aperture'],
                                 'Aperture used for the exposure')
