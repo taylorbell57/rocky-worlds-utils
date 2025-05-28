@@ -80,8 +80,8 @@ def integrate_flux(wavelength_range, wavelength_list, flux_list, gross_list,
     """
     # Raise an error if the user-defined wavelength range is outside of the
     # hard boundaries of the wavelength list
-    if (wavelength_range[0] > wavelength_list[-1]) or \
-            (wavelength_range[1] < wavelength_list[0]):
+    if (wavelength_range[1] > wavelength_list[-1]) or \
+            (wavelength_range[0] < wavelength_list[0]):
         raise ValueError('Wavelength_range must be within the boundaries of '
                          'the wavelength_list.')
 
@@ -166,6 +166,11 @@ def read_fits(dataset, prefix, target_name=None):
     right_ascension = x1d_header_0['RA_TARG']
     detector = x1d_header_0['DETECTOR']
 
+    try:
+        fp_pos = x1d_header_0['FPPOS']  # Present only in headers of COS data
+    except KeyError:
+        fp_pos = None  # Assign a None if STIS data
+
     if target_name is None:
         target_name = x1d_header_0['TARGNAME']
 
@@ -208,6 +213,7 @@ def read_fits(dataset, prefix, target_name=None):
         'grating': grating,
         'aperture': aperture,
         'cenwave': cenwave,
+        'fppos': fp_pos,
         'exp_start': exposure_start,  # MJD
         'exp_end': exposure_end,  # MJD
         'time_stamp': time_stamp,  # MJD
@@ -445,6 +451,8 @@ def generate_hlsp(dataset, prefix, output_dir, filename=None,
                               "Grating used for the exposure")
     hdu_1.header['CENWAVE'] = (time_series_dict[0]['cenwave'],
                                "Central wavelength used for the exposure")
+    hdu_1.header['FP-POS'] = (time_series_dict[0]['fppos'],
+                              "FP-POS used for the exposure")
     hdu_1.header['RADESYS'] = ('ICRS', 'Celestial coordinate reference system')
     hdu_1.header['RA_TARG'] = (time_series_dict[0]['ra'],
                                'Right Ascension coordinate of the target in '
