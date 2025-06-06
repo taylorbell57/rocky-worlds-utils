@@ -165,6 +165,7 @@ def read_fits(dataset, prefix, target_name=None):
     declination = x1d_header_0['DEC_TARG']
     right_ascension = x1d_header_0['RA_TARG']
     detector = x1d_header_0['DETECTOR']
+    proposal_id = x1d_header_0['PROPOSID']
 
     try:
         fp_pos = x1d_header_0['FPPOS']  # Present only in headers of COS data
@@ -205,6 +206,7 @@ def read_fits(dataset, prefix, target_name=None):
             net_array[i] += data['NET']
 
     time_series_dict = {
+        'proposal_id': proposal_id,
         'instrument': instrument,
         'detector': detector,
         'target': target_name,
@@ -351,7 +353,7 @@ def generate_light_curve(dataset, prefix, wavelength_range=None,
 
 # Create an HLSP file for a time series
 def generate_hlsp(dataset, prefix, output_dir, filename=None,
-                  wavelength_range=None):
+                  wavelength_range=None, version='1.0'):
     """
     Generate a high-level spectral product for a time-series observation.
 
@@ -375,6 +377,10 @@ def generate_hlsp(dataset, prefix, output_dir, filename=None,
         List, array or tuple of two floats containing the start and end of the
         wavelength range to be integrated. If ``None``, the entire wavelength
         range available in the spectrum will be integrated. Default is ``None``.
+
+    version : ``str``, optional
+        Version of this HLSP, must have a {major}.{minor} format and it must be
+        a string. Default is ``'1.0'``.
     """
     if isinstance(dataset, str):
         time_series_dict = [read_fits(dataset, prefix), ]
@@ -398,13 +404,18 @@ def generate_hlsp(dataset, prefix, output_dir, filename=None,
     hdu_0 = fits.PrimaryHDU()
 
     # Set the common meta data
+    hdu_0.header['HLSPTYPE'] = ('Light curve', 'HLSP Type')
     hdu_0.header['DATE-BEG'] = (Time(min(exp_start_list), format='mjd').iso,
                                 'ISO-8601 date-time start of the observation')
-    hdu_0.header['DATE-EDN'] = (Time(max(exp_end_list), format='mjd').iso,
+    hdu_0.header['DATE-END'] = (Time(max(exp_end_list), format='mjd').iso,
                                 'ISO-8601 date-time end of the observation')
-    hdu_0.header['DOI'] =  ('TBD', 'Digital Object Identifier')
-    hdu_0.header['HLSPID'] = ('RWDDT', 'Identifier of this HLSP collection')
-    hdu_0.header['HLSPLEAD'] = ('TBD', 'Full name of HLSP project lead')
+    hdu_0.header['DOI'] =  ('10.17909/qsyr-ny68', 'Digital Object Identifier')
+    hdu_0.header['HLSPID'] = ('ROCKY-WORLDS',
+                              'Identifier of this HLSP collection')
+    hdu_0.header['HLSP_PI'] = ('Hannah Diamond-Lowe',
+                              'Principal Investigator of this HLSP collection')
+    hdu_0.header['HLSPLEAD'] = ('Leonardo dos Santos',
+                                'Full name of HLSP project lead')
     hdu_0.header['HLSPNAME'] = ('Rocky Worlds', 'Title of this HLSP project')
     hdu_0.header['HLSPTARG'] = (time_series_dict[0]['target'],
                                 'Designation of the target')
@@ -422,7 +433,7 @@ def generate_hlsp(dataset, prefix, output_dir, filename=None,
                                'Mid-time of the observation in MJD')
     hdu_0.header['OBSERVAT'] = ('HST',
                                 'Observatory used to obtain this observation')
-    hdu_0.header['PROPOSID'] = ('TBD',
+    hdu_0.header['PROPOSID'] = (time_series_dict[0]['proposal_id'],
                                 'Observatory program/proposal identifier')
     hdu_0.header['REFERENC'] = ('TBD', 'Bibliographic identifier')
     hdu_0.header['TELAPSE'] = (elapsed_time,
@@ -457,6 +468,16 @@ def generate_hlsp(dataset, prefix, output_dir, filename=None,
     hdu_1.header['RA_TARG'] = (time_series_dict[0]['ra'],
                                'Right Ascension coordinate of the target in '
                                'deg')
+
+    if filename is None:
+        filename = 'hlsp_rocky-worlds_hst_{}_{}_{}_v{}_lc.fits'.format(
+            time_series_dict[0]['instrument'].lower(),
+            time_series_dict[0]['target'].lower(),
+            time_series_dict[0]['grating'].lower(),
+            version,
+        )
+    else:
+        pass
 
     hdu_list = [hdu_0, hdu_1]
     hdul = fits.HDUList(hdu_list)
