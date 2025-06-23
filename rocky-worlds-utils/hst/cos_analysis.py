@@ -30,8 +30,7 @@ print('{} processing units available for parallelized COS data '
 # Divide exposures into sub-exposures for TIME-TAG data and process them
 def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
                   temporal_resolution=None, clean_intermediate_steps=True,
-                  overwrite=False, output_file_name=None, multiprocess=True,
-                  n_cpus=__N_PROCESSES):
+                  overwrite=False, output_file_name=None, n_cpus=__N_PROCESSES):
     """
     Creates a new time-series of x1d fits files of an HST/COS dataset.
 
@@ -67,10 +66,6 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
         Sets the name of the output file. If set, it must contain the extension
         ``.fits``. If ``None``, then the default output file name is
         ``[dataset]_ts_x1d.fits``. Default is ``None``.
-
-    multiprocess : ``bool``, optional
-        Sets whether multiprocessing should be used. If using Jupyter notebooks,
-        it is recommended to set this to ``False``. Default is ``True``.
 
     n_cpus : ``int``, optional
         Number of CPU cores to use in data reduction. Default is the maximum
@@ -148,7 +143,7 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
     # Extract the tag-split spectra
     split_list = glob.glob(output_dir + dataset + '_*_*_corrtag.fits')
 
-    if multiprocess is True:
+    if n_cpus > 1:
         try:
             with multiprocessing.Pool(processes=n_cpus) as pool:
                 _ = pool.starmap(

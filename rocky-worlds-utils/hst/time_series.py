@@ -155,6 +155,27 @@ def read_fits(dataset, prefix, target_name=None):
     Returns
     -------
     time_series_dict : ``dict``
+        Dictionary containing the following information about the time series:
+        - `proposal_id`
+        - `instrument`
+        - `detector`
+        - `target`
+        - `ra` (right ascension)
+        - `dec` (declination)
+        - `grating`
+        - `aperture`
+        - `cenwave` (central wavelength)
+        - `fppos` (FP-POS number, relevant only for COS)
+        - `exp_start` (exposure start in MJD)
+        - `exp_end` (exposure end in MJD)
+        - `time_stamp` (time stamp in MJD)
+        - `exp_time` (exposure time in s)
+        - `n_detector_segments` (number of detector segments)
+        - `wavelength` (wavelength in Angstrom)
+        - `flux` (flux density in erg / s / cm ** 2 / A)
+        - `error` (flux density error in  erg / s / cm ** 2 / A)
+        - `gross_counts` (gross counts)
+        - `net` (net count rate in counts / s)
     """
     x1d_filename = dataset + '_ts_x1d.fits'
     x1d_header_0 = fits.getheader(str(prefix) + '/' + x1d_filename, 0)
@@ -286,23 +307,23 @@ def generate_light_curve(dataset, prefix, wavelength_range=None,
     gross = np.zeros([n_dataset, n_subexposures])
     gross_error = np.zeros([n_dataset, n_subexposures])
 
-    for i in range(n_dataset):
-        for j in range(n_subexposures):
-            wavelength = time_series_dict[i]['wavelength'][j]
-            flux_density = time_series_dict[i]['flux'][j]
-            gross = time_series_dict[i]['gross_counts'][j]
-            net = time_series_dict[i]['net'][j]
-            current_exp_time = time_series_dict[i]['exp_time'][j]
+    for row in range(n_dataset):
+        for col in range(n_subexposures):
+            wavelength = time_series_dict[row]['wavelength'][col]
+            flux_density = time_series_dict[row]['flux'][col]
+            gross = time_series_dict[row]['gross_counts'][col]
+            net = time_series_dict[row]['net'][col]
+            current_exp_time = time_series_dict[row]['exp_time'][col]
             int_flux = 0.0
             int_error_squared = 0.0
             int_gross = 0.0
             int_gross_err_squared = 0.0
-            time[i, j] = time_series_dict[i]['time_stamp'][j]
-            for k in range(n_segments):
+            time[row, col] = time_series_dict[row]['time_stamp'][col]
+            for segment in range(n_segments):
                 # Figure out the wavelength range
                 if wavelength_range is None:
-                    wl_0 = min(wavelength[k])
-                    wl_1 = max(wavelength[k])
+                    wl_0 = min(wavelength[segment])
+                    wl_1 = max(wavelength[segment])
                     current_wavelength_range = np.array([wl_0, wl_1])
                 else:
                     current_wavelength_range = wavelength_range
@@ -310,8 +331,10 @@ def generate_light_curve(dataset, prefix, wavelength_range=None,
                     if return_integrated_gross is False:
                         current_int_flux, current_int_error = (
                             integrate_flux(current_wavelength_range,
-                                           wavelength[k], flux_density[k],
-                                           gross[k], net[k], current_exp_time,
+                                           wavelength[segment],
+                                           flux_density[segment],
+                                           gross[segment], net[segment],
+                                           current_exp_time,
                                            return_integrated_gross=False))
                         current_int_gross = 0.0
                         current_gross_err = 0.0
@@ -319,8 +342,10 @@ def generate_light_curve(dataset, prefix, wavelength_range=None,
                         (current_int_flux, current_int_error, current_int_gross,
                          current_gross_err) = (
                             integrate_flux(current_wavelength_range,
-                                           wavelength[k], flux_density[k],
-                                           gross[k], net[k], current_exp_time,
+                                           wavelength[segment],
+                                           flux_density[segment],
+                                           gross[segment], net[segment],
+                                           current_exp_time,
                                            return_integrated_gross=True))
                 except ValueError:
                     current_int_flux = 0.0
@@ -333,10 +358,10 @@ def generate_light_curve(dataset, prefix, wavelength_range=None,
                 int_gross_err_squared += current_gross_err ** 2
             int_error = np.sqrt(int_error_squared)
             int_gross_error = np.sqrt(int_gross_err_squared)
-            flux[i, j] = int_flux
-            flux_error[i, j] = int_error
-            gross[i, j] = int_gross
-            gross_error[i, j] = int_gross_error
+            flux[row, col] = int_flux
+            flux_error[row, col] = int_error
+            gross[row, col] = int_gross
+            gross_error[row, col] = int_gross_error
 
     # Flatten the arrays
     time = time.flatten()

@@ -18,7 +18,7 @@ from scipy.integrate import simpson
 from astropy.io import fits
 
 # Local scripts
-from utils import nearest_index
+from tools import nearest_index
 
 __all__ = ["read_hsla_product", "calculate_snr_hsla", "plot_lines_hsla", ]
 
@@ -155,9 +155,9 @@ def plot_lines_hsla(wavelength, flux, error, scale=1E-14, velocity_lower=-100.0,
 
     velocity_range = np.array([velocity_lower, velocity_upper])
 
-    for i in range(nrows):
-        for j in range(ncols):
-            central_wl = _KEY_LINE_CENTERS[i][j]
+    for row in range(nrows):
+        for col in range(ncols):
+            central_wl = _KEY_LINE_CENTERS[row][col]
             velocity = (wavelength - central_wl) / central_wl * _C_SPEED
             i0 = nearest_index(velocity, velocity_range[0])
             i1 = nearest_index(velocity, velocity_range[1])
@@ -166,12 +166,12 @@ def plot_lines_hsla(wavelength, flux, error, scale=1E-14, velocity_lower=-100.0,
             f_plot = flux[i0:i1 + 1] / scale
             u_plot = error[i0:i1 + 1] / scale
             snr = calculate_snr_hsla(wl_plot, f_plot, u_plot)
-            ax[i, j].plot(v_plot, f_plot, label=str(snr))
-            ax[i, j].set_title(_KEY_LINE_IDS[i][j] +
+            ax[row, col].plot(v_plot, f_plot, label=str(snr))
+            ax[row, col].set_title(_KEY_LINE_IDS[row][col] +
                                r'@{}$\AA$'.format(str(central_wl)))
-            ax[i, j].annotate('SNR = %.1f' % snr,
+            ax[row, col].annotate('SNR = %.1f' % snr,
                               xy=(velocity_range[0], max(f_plot) * 0.9))
-            if i == nrows - 1:
-                ax[i, j].set_xlabel(r'Velocity [km s$^{-1}$]')
+            if row == nrows - 1:
+                ax[row, col].set_xlabel(r'Velocity [km s$^{-1}$]')
 
     return fig, ax
