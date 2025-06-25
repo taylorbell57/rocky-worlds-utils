@@ -13,7 +13,10 @@ import os
 
 from astropy.io import fits
 
-__all__ = ["timetag_split", "extract"]
+__all__ = [
+    "timetag_split",
+    "extract"
+]
 
 
 # Divide exposures into sub-exposures for TIME-TAG data and process them

@@ -118,7 +118,12 @@ def calculate_snr_hsla(wavelength_array, flux_array, error_array):
 
 # Plot the flux and print SNR of key emission lines in a HSLA spectrum
 def plot_lines_hsla(
-    wavelength, flux, error, scale=1e-14, velocity_lower=-100.0, velocity_upper=100.0
+    wavelength,
+    flux,
+    error,
+    scale=1e-14,
+    velocity_lower=-100.0,
+    velocity_upper=100.0
 ):
     """
     Plot the HSLA spectrum in key emission lines.

@@ -16,7 +16,12 @@ from astropy.time import Time
 from scipy.integrate import simpson
 from astropy.io import fits
 
-__all__ = ["integrate_flux", "read_fits", "generate_light_curve", "generate_hlsp"]
+__all__ = [
+    "integrate_flux",
+    "read_fits",
+    "generate_light_curve",
+    "generate_hlsp"
+]
 
 
 # This function integrates the flux within a wavelength range for given arrays
@@ -90,7 +95,8 @@ def integrate_flux(
         wavelength_range[0] < wavelength_list[0]
     ):
         raise ValueError(
-            "Wavelength_range must be within the boundaries of the wavelength_list."
+            "Wavelength_range must be within the boundaries of the "
+            "wavelength_list."
         )
 
     # Since the pixels may not range exactly in the interval above,
@@ -107,13 +113,17 @@ def integrate_flux(
     # And now we deal with the flux in the fractional pixels
     index_left = full_indexes[0]
     index_right = full_indexes[-1]
-    pixel_width_left = wavelength_list[index_left] - wavelength_list[index_left - 1]
+    pixel_width_left = (wavelength_list[index_left] -
+                        wavelength_list[index_left - 1])
     fraction_left = (
-        1 - (wavelength_range[0] - wavelength_list[index_left - 1]) / pixel_width_left
+        1 - (wavelength_range[0] - wavelength_list[index_left - 1]) /
+        pixel_width_left
     )
-    pixel_width_right = wavelength_list[index_right + 1] - wavelength_list[index_right]
+    pixel_width_right = (wavelength_list[index_right + 1] -
+                         wavelength_list[index_right])
     fraction_right = (
-        1 - (wavelength_list[index_right + 1] - wavelength_range[1]) / pixel_width_right
+        1 - (wavelength_list[index_right + 1] - wavelength_range[1]) /
+        pixel_width_right
     )
     fractional_flux_left = flux_list[index_left - 1] * fraction_left
     fractional_flux_right = flux_list[index_right + 1] * fraction_right
@@ -124,7 +134,8 @@ def integrate_flux(
     full_pixel_gross = np.sum(gross_list[full_indexes])
     fractional_gross_left = gross_list[index_left - 1] * fraction_left
     fractional_gross_right = gross_list[index_right + 1] * fraction_right
-    integrated_gross = full_pixel_gross + fractional_gross_left + fractional_gross_right
+    integrated_gross = (full_pixel_gross + fractional_gross_left +
+                        fractional_gross_right)
     sensitivity = flux_list[full_indexes] / net_list[full_indexes]
     mean_sensitivity = np.nanmean(sensitivity)
     gross_error = (
@@ -135,7 +146,8 @@ def integrate_flux(
     average_gross_error = (-gross_error[0] + gross_error[1]) / 2
     integrated_error = average_gross_error * mean_sensitivity / exposure_time
 
-    integrated_flux = full_pixel_flux + fractional_flux_left + fractional_flux_right
+    integrated_flux = (full_pixel_flux + fractional_flux_left +
+                       fractional_flux_right)
 
     if return_integrated_gross is False:
         return integrated_flux, integrated_error
@@ -403,7 +415,12 @@ def generate_light_curve(
 
 # Create an HLSP file for a time series
 def generate_hlsp(
-    dataset, prefix, output_dir, filename=None, wavelength_range=None, version="1.0"
+    dataset,
+    prefix,
+    output_dir,
+    filename=None,
+    wavelength_range=None,
+    version="1.0"
 ):
     """
     Generate a high-level spectral product for a time-series observation.
@@ -452,7 +469,8 @@ def generate_hlsp(
     # Compile lists of meta data
     exp_start_list = np.array([d["exp_start"] for d in time_series_dict])[0]
     exp_end_list = np.array([d["exp_end"] for d in time_series_dict])[0]
-    elapsed_time = ((max(exp_end_list) - min(exp_start_list)) * u.d).to(u.s).value
+    elapsed_time = (
+        ((max(exp_end_list) - min(exp_start_list)) * u.d).to(u.s).value)
     exposure_time = np.sum(np.array([d["exp_time"] for d in time_series_dict]))
 
     hdu_0 = fits.PrimaryHDU()
@@ -519,7 +537,8 @@ def generate_hlsp(
             fits.Column(name="FLUX", format="D", array=flux_array),
             fits.Column(name="FLUXERROR", format="D", array=error_array),
             fits.Column(name="COUNTS", format="D", array=gross_array),
-            fits.Column(name="COUNTSERROR", format="D", array=gross_error_array),
+            fits.Column(name="COUNTSERROR", format="D",
+                        array=gross_error_array),
         ]
     )
     hdu_1.header["APERTURE"] = (
