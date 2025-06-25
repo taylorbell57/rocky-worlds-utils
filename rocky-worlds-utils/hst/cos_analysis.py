@@ -86,8 +86,7 @@ def timetag_split(
     """
     # Initial checks
     if output_dir == prefix:
-        raise ValueError(
-            "The output directory must be different from the prefix.")
+        raise ValueError("The output directory must be different from the prefix.")
     if output_file_name is None:
         output_file_name = dataset + "_ts_x1d.fits"
         output_file = str(output_dir) + "/" + output_file_name
@@ -136,12 +135,10 @@ def timetag_split(
         time_list += str(time) + ", "
 
     costools.splittag.splittag(
-        infiles=tag_filename_a, outroot=output_dir + dataset,
-        time_list=time_list
+        infiles=tag_filename_a, outroot=output_dir + dataset, time_list=time_list
     )
     costools.splittag.splittag(
-        infiles=tag_filename_b, outroot=output_dir + dataset,
-        time_list=time_list
+        infiles=tag_filename_b, outroot=output_dir + dataset, time_list=time_list
     )
 
     # Run the tag split data in the CalCOS pipeline
@@ -163,8 +160,7 @@ def timetag_split(
             with multiprocessing.Pool(processes=n_cpus) as pool:
                 _ = pool.starmap(
                     calcos.calcos,
-                    [(subexposure, output_dir + "temp/")
-                     for subexposure in split_list],
+                    [(subexposure, output_dir + "temp/") for subexposure in split_list],
                 )
         except FileExistsError:
             for subexposure in split_list:
@@ -222,13 +218,11 @@ def timetag_split(
         primary_header["FILENAME"] = output_file_name
 
     new_primary_hdu = fits.PrimaryHDU(header=primary_header, data=primary_data)
-    new_bintable_hdu = fits.BinTableHDU(header=bintable_header,
-                                        data=bintable_data)
+    new_bintable_hdu = fits.BinTableHDU(header=bintable_header, data=bintable_data)
     hdu_list = [new_primary_hdu, new_bintable_hdu]
 
     for i in range(n_subexposures - 1):
-        with fits.open(output_dir +
-                       dataset + "_{}_x1d.fits".format(str(i + 2))) as hdu:
+        with fits.open(output_dir + dataset + "_{}_x1d.fits".format(str(i + 2))) as hdu:
             next_bintable_header = hdu[1].header
             next_bintable_data = hdu[1].data
         # Correct the EXPSTART value because there is a bug in costools.splittag
