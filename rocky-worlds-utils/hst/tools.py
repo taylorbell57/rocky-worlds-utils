@@ -10,7 +10,9 @@ Authors
 
 import numpy as np
 
-__all__ = ["nearest_index", ]
+__all__ = [
+    "nearest_index",
+]
 
 
 def nearest_index(array, target_value):

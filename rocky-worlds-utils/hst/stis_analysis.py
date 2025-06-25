@@ -17,9 +17,16 @@ __all__ = ["timetag_split", "extract"]
 
 
 # Divide exposures into sub-exposures for TIME-TAG data and process them
-def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
-                  temporal_resolution=None, clean_intermediate_steps=True,
-                  overwrite=False, output_file_name=None):
+def timetag_split(
+    dataset,
+    prefix,
+    output_dir,
+    n_subexposures=10,
+    temporal_resolution=None,
+    clean_intermediate_steps=True,
+    overwrite=False,
+    output_file_name=None,
+):
     """
     Creates a new time-series of x1d fits files of an HST/STIS dataset.
 
@@ -58,38 +65,37 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
     """
     # Initial checks
     if output_dir == prefix:
-        raise ValueError('The output directory must be different '
-                                    'from the prefix.')
+        raise ValueError("The output directory must be different from the prefix.")
     if output_file_name is None:
-        output_file = str(output_dir) + '/' + dataset + '_ts_x1d.fits'
-    elif output_file_name[:-5] != '.fits':
-        raise ValueError('The extension of the output file must be .fits.')
+        output_file = str(output_dir) + "/" + dataset + "_ts_x1d.fits"
+    elif output_file_name[:-5] != ".fits":
+        raise ValueError("The extension of the output file must be .fits.")
     else:
-        output_file = str(output_dir) + '/' + output_file_name
+        output_file = str(output_dir) + "/" + output_file_name
 
     # Test if output file exists, and if it does, delete it if overwrite is True
     if os.path.isfile(output_file):
         if overwrite is False:
-            raise IOError('Time-tag split output file already exists.')
+            raise IOError("Time-tag split output file already exists.")
         else:
             os.remove(output_file)
     else:
         pass
 
-    x1d_filename = dataset + '_x1d.fits'
+    x1d_filename = dataset + "_x1d.fits"
 
-    x1d_header_0 = fits.getheader(str(prefix) + '/' + x1d_filename, 0)
-    x1d_header_1 = fits.getheader(str(prefix) + '/' + x1d_filename, 1)
-    x1d_data = fits.getdata(str(prefix) + '/' + x1d_filename)
+    x1d_header_0 = fits.getheader(str(prefix) + "/" + x1d_filename, 0)
+    x1d_header_1 = fits.getheader(str(prefix) + "/" + x1d_filename, 1)
+    x1d_data = fits.getdata(str(prefix) + "/" + x1d_filename)
 
     # Perform some other checks
-    if x1d_header_0['OBSTYPE'] != 'SPECTROSCOPIC':
-        raise ValueError('Observation type must be SPECTROSCOPIC.')
-    if x1d_header_0['OBSMODE'] != 'TIME-TAG':
-        raise ValueError('Observing mode must be TIME-TAG.')
+    if x1d_header_0["OBSTYPE"] != "SPECTROSCOPIC":
+        raise ValueError("Observation type must be SPECTROSCOPIC.")
+    if x1d_header_0["OBSMODE"] != "TIME-TAG":
+        raise ValueError("Observing mode must be TIME-TAG.")
 
     # Extracting some useful information
-    exp_time = x1d_header_1['EXPTIME']
+    exp_time = x1d_header_1["EXPTIME"]
 
     # Define the number of sub-exposures
     if temporal_resolution is not None:
@@ -100,50 +106,72 @@ def timetag_split(dataset, prefix, output_dir, n_subexposures=10,
     # We will use inttag to break down the full exposure into subexposures
     # XXX WARNING: Dependending on the number of subexposures, the file can be
     # very large! XXX
-    tag_filename = dataset + '_tag.fits'
+    tag_filename = dataset + "_tag.fits"
 
-    stistools.inttag.inttag(tagfile=str(prefix) + '/' + tag_filename,
-                            output=str(
-                                output_dir) + '/' + dataset + '_ts_raw.fits',
-                            rcount=n_subexposures)
+    stistools.inttag.inttag(
+        tagfile=str(prefix) + "/" + tag_filename,
+        output=str(output_dir) + "/" + dataset + "_ts_raw.fits",
+        rcount=n_subexposures,
+    )
 
     # And now we run the raw file through calstis, more specifically basic2d,
     # which does not extract the spectrum yet
     stistools.basic2d.basic2d(
-        str(output_dir) + '/' + dataset + '_ts_raw.fits',
-        str(output_dir) + '/' + dataset + '_ts_flt.fits')
+        str(output_dir) + "/" + dataset + "_ts_raw.fits",
+        str(output_dir) + "/" + dataset + "_ts_flt.fits",
+    )
 
     stistools.wavecal.wavecal(
-        str(output_dir) + '/' + dataset + '_ts_flt.fits',
-        wavecal=str(prefix) + '/' + dataset + '_wav.fits')
+        str(output_dir) + "/" + dataset + "_ts_flt.fits",
+        wavecal=str(prefix) + "/" + dataset + "_wav.fits",
+    )
 
     # Now we extract the spectrum in the same location as the original full
     # exposure and turn off the automatic trace finding (set by the maxsrch
     # parameter)
-    extract_yloc = x1d_data['A2CENTER'][0]
-    extract_size = x1d_data['EXTRSIZE'][0]
-    extract_bk1_size = x1d_data['BK1SIZE'][0]
-    extract_bk2_size = x1d_data['BK2SIZE'][0]
-    extract_bk1_offset = x1d_data['BK1OFFST'][0]
-    extract_bk2_offset = x1d_data['BK2OFFST'][0]
+    extract_yloc = x1d_data["A2CENTER"][0]
+    extract_size = x1d_data["EXTRSIZE"][0]
+    extract_bk1_size = x1d_data["BK1SIZE"][0]
+    extract_bk2_size = x1d_data["BK2SIZE"][0]
+    extract_bk1_offset = x1d_data["BK1OFFST"][0]
+    extract_bk2_offset = x1d_data["BK2OFFST"][0]
 
     # Process the time series
-    extract(dataset + '_ts', str(output_dir) + '/', str(output_dir) + '/',
-            extract_yloc, extract_size, extract_bk1_size, extract_bk2_size,
-            extract_bk1_offset, extract_bk2_offset, overwrite)
+    extract(
+        dataset + "_ts",
+        str(output_dir) + "/",
+        str(output_dir) + "/",
+        extract_yloc,
+        extract_size,
+        extract_bk1_size,
+        extract_bk2_size,
+        extract_bk1_offset,
+        extract_bk2_offset,
+        overwrite,
+    )
 
     # Clean intermediate steps if requested
     if clean_intermediate_steps is True:
-        os.remove(str(output_dir) + '/' + dataset + '_ts_flt.fits')
-        os.remove(str(output_dir) + '/' + dataset + '_ts_raw.fits')
+        os.remove(str(output_dir) + "/" + dataset + "_ts_flt.fits")
+        os.remove(str(output_dir) + "/" + dataset + "_ts_raw.fits")
     else:
         pass
 
 
 # Extract STIS first-order spectra with user-defined trace positions
-def extract(dataset, prefix, output_dir, a2center, extraction_size=11,
-            background1_size=5, background2_size=5, background1_offset=-300,
-            background2_offset=300, overwrite=False, output_file_name=None):
+def extract(
+    dataset,
+    prefix,
+    output_dir,
+    a2center,
+    extraction_size=11,
+    background1_size=5,
+    background2_size=5,
+    background1_offset=-300,
+    background2_offset=300,
+    overwrite=False,
+    output_file_name=None,
+):
     """
     Sometimes CALSTIS cannot properly find the trace location of faint FUV
     targets in first-order spectroscopy. This function allows the user to
@@ -193,42 +221,43 @@ def extract(dataset, prefix, output_dir, a2center, extraction_size=11,
         ``[dataset]_ts_x1d.fits``. Default is ``None``.
     """
     # Initial checks
-    if prefix[-1] != '/':
-        prefix += '/'
+    if prefix[-1] != "/":
+        prefix += "/"
     else:
         pass
-    if output_dir[-1] != '/':
-        output_dir += '/'
+    if output_dir[-1] != "/":
+        output_dir += "/"
     else:
         pass
 
     # I/O
-    input_file = str(prefix) + dataset + '_flt.fits'
+    input_file = str(prefix) + dataset + "_flt.fits"
     if output_file_name is not None:
         output_file = output_dir + output_file_name
     else:
-        output_file = output_dir + dataset + '_x1d.fits'
+        output_file = output_dir + dataset + "_x1d.fits"
 
     # Test if output file exists, and if it does, delete it if overwrite is True
     if os.path.isfile(output_file):
         if overwrite is False:
-            raise IOError('Extracted output spectrum already exists.')
+            raise IOError("Extracted output spectrum already exists.")
         else:
             os.remove(output_file)
     else:
         pass
 
     # Process the time series
-    stistools.x1d.x1d(input_file,
-                      output=output_file,
-                      maxsrch=0,
-                      # Setting this to zero ensures that code will not look for
-                      # trace location
-                      a2center=a2center,
-                      extrsize=extraction_size,
-                      backcorr='perform',
-                      bk1size=background1_size,
-                      bk2size=background2_size,
-                      bk1offst=background1_offset,
-                      bk2offst=background2_offset
-                      )
+    stistools.x1d.x1d(
+        input_file,
+        output=output_file,
+        maxsrch=0,
+        # Setting this to zero ensures that code will not look for
+        # trace location
+        a2center=a2center,
+        extrsize=extraction_size,
+        backcorr="perform",
+        bk1size=background1_size,
+        bk2size=background2_size,
+        bk1offst=background1_offset,
+        bk2offst=background2_offset,
+    )
