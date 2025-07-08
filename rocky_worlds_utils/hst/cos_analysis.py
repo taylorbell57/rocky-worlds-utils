@@ -132,8 +132,8 @@ def timetag_split(
     time_bins = np.linspace(0, exp_time, n_subexposures + 1)
 
     # We will use splittag to break down the full exposure into subexposures
-    tag_filename_a = prefix + dataset + "_corrtag_a.fits"
-    tag_filename_b = prefix + dataset + "_corrtag_b.fits"
+    tag_filename_a = os.path.join(prefix, dataset + "_corrtag_a.fits")
+    tag_filename_b = os.path.join(prefix, dataset + "_corrtag_b.fits")
     time_list = ""
     for time in time_bins:
         time_list += str(time) + ", "
@@ -158,6 +158,7 @@ def timetag_split(
         # split_tag.stem prints rootname_split-tag-number_caltype_segment
         # for example: output_dir/ld9m17d3q_1_corrtag_b.fits, the stem would be ld9m17d3q_1_corrtag_b
         basename, ext = os.path.splitext(os.path.basename(split_tag))
+        print(basename.split("_"))
         _, split_tag_number, caltype, segment = basename.split("_")
         new_split_tag_name = (
             "_".join([dataset, split_tag_number, segment, caltype]) + ext
