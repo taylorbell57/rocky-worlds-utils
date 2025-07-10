@@ -35,17 +35,14 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install pytest pycodestyle
+        pip install pytest-order
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Code Style Check
       run: |
-        pycodestyle --ignore=E501,E505,W503 rocky_worlds_utils/*/*.py
+        pycodestyle --ignore=E501,E505,W503 rocky_worlds_utils/tests/*/*.py
     - name: Install Rocky Worlds Utils
       run: |
         pip install .
     - name: Test with pytest
       run: |
-        echo $CRDS_PATH
-        ls $CRDS_PATH/*
-        ls $oref
-        ls $lref
         pytest

@@ -8,10 +8,7 @@ Authors
 - Leonardo dos Santos <<ldsantos@stsci.edu>>
 """
 
-import sys
 import numpy as np
-
-sys.path.insert(1, "rocky-worlds-utils/hst")
 from rocky_worlds_utils.hst.tools import nearest_index
 
 

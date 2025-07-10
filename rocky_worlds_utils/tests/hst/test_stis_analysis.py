@@ -4,7 +4,7 @@ import numpy as np
 import os
 
 from rocky_worlds_utils.hst.stis_analysis import timetag_split
-from rocky_worlds_utils.hst.tools import download_stis_data
+from rocky_worlds_utils.tests.hst.utils import download_stis_data
 
 ON_GITHUB_ACTIONS = "/home/runner" in os.path.expanduser(
     "~"
@@ -14,7 +14,7 @@ if ON_GITHUB_ACTIONS:
     download_stis_data()
 
 
-def test_timetag_split():
+def test_stis_timetag_split():
     input_dir = os.path.join(os.getcwd())
     output_dir = os.path.join(os.getcwd(), "stis_analysis_output")
 

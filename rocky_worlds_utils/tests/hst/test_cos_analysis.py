@@ -4,7 +4,7 @@ import numpy as np
 import os
 
 from rocky_worlds_utils.hst.cos_analysis import timetag_split
-from rocky_worlds_utils.hst.tools import download_cos_data
+from rocky_worlds_utils.tests.hst.utils import download_cos_data
 
 ON_GITHUB_ACTIONS = "/home/runner" in os.path.expanduser(
     "~"
@@ -14,7 +14,7 @@ if ON_GITHUB_ACTIONS:
     download_cos_data()
 
 
-def test_timetag_split():
+def test_cos_timetag_split():
     input_dir = os.path.join(os.getcwd())
     output_dir = os.path.join(os.getcwd(), "cos_analysis_output")
 
