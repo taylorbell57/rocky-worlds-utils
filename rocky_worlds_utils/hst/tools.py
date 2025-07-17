@@ -10,6 +10,7 @@ Authors
 
 import numpy as np
 
+
 __all__ = [
     "nearest_index",
 ]
